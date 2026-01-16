@@ -50,16 +50,10 @@ def analyze_markdown(markdown_text):
 
     content = response.choices[0].message.content
 
-    #print("RAW LLM OUTPUT:\n", content)
-
-    #return json.loads(content)
-
     content = re.sub(r"```json\s*", "", content, flags=re.IGNORECASE)
     content = re.sub(r"\s*```", "", content)
 
     content = content.strip()
-
-    #print("LLM OUTPUT:\n", content)
 
     try:
         return json.loads(content)
