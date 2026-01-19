@@ -155,3 +155,28 @@ Acción:
   },
   "sourceService": "external-pricing-system"
 }
+```
+### Documento persistido (prices)
+```json
+{
+  "sku": "SKU-12345",
+  "channel": "online",
+  "storeId": "STORE-001",
+  "currency": "EUR",
+  "amount": 19.99,
+  "effectiveFrom": "2026-01-15T00:00:00Z",
+  "effectiveTo": "2026-12-31T23:59:59Z",
+  "version": 1
+}
+```
+
+---
+
+## No-objetivos
+
+Este microservicio **NO** es responsable de:
+
+* Cálculo de totales de carrito
+* Aplicación de promociones
+* Exposición de APIs REST
+* Gestión de pedidos o pagos
