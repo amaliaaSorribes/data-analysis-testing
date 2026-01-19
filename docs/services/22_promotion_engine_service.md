@@ -123,7 +123,7 @@ Las reglas específicas de cada tipo se definen en el documento de la promoción
 }
 ```
 
-**Errores funcionales**
+**Errores técnicos**
 
 * `500 INTERNAL_ERROR`
 * `503 SERVICE_UNAVAILABLE`

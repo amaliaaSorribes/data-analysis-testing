@@ -89,7 +89,7 @@ Devuelve la información del pedido.
 
 ---
 
-### Estados y transiciones
+## Estados y transiciones
 
 Los pedidos pueden encontrarse en los siguientes estados:
 
