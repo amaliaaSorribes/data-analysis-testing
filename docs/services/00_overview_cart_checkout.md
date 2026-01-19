@@ -74,36 +74,48 @@ El sistema está pensado para un retailer omnicanal con:
 ## 6. Microservicios (lista y responsabilidades)
 
 ### Ingesta
+
 - **Catalog Ingestion Service**  
-  Ingesta y persistencia del catálogo de productos.
+  Ingesta y persistencia del catálogo de productos.  
+  📄 Documento: [`10_catalog_ingestion_service.md`](10_catalog_ingestion_service.md)
 
 - **Pricing Ingestion Service**  
-  Ingesta de precios base por canal/tienda/moneda y gestión de vigencias.
+  Ingesta de precios base por canal/tienda/moneda y gestión de vigencias.  
+  📄 Documento: [`11_pricing_ingestion_service.md`](11_pricing_ingestion_service.md)
 
 - **Promotions Ingestion Service**  
-  Ingesta de promociones, reglas y cupones.
+  Ingesta de promociones, reglas y cupones.  
+  📄 Documento: [`12_promotions_ingestion_service.md`](12_promotions_ingestion_service.md)
 
 ### Transaccionales
+
 - **Cart Service**  
-  Gestión del carrito y sesión: añadir/eliminar ítems, cantidades, totales.
+  Gestión del carrito y sesión: añadir/eliminar ítems, cantidades, totales en sesión.  
+  📄 Documento: [`20_cart_service.md`](20_cart_service.md)
 
 - **Pricing Service**  
-  Cálculo de precios y totales (quote) a partir de los ítems del carrito.
+  Cálculo de precios y totales (*quote*) a partir de los ítems del carrito.  
+  📄 Documento: [`21_pricing_service.md`](21_pricing_service.md)
 
 - **Promotion Engine Service**  
-  Aplicación de promociones y validación de cupones.
+  Aplicación de promociones y validación de cupones.  
+  📄 Documento: [`22_promotion_engine_service.md`](22_promotion_engine_service.md)
 
 - **Delivery Options Service**  
-  Disponibilidad y coste de entrega en sesión.
+  Disponibilidad y coste de entrega en sesión.  
+  📄 Documento: [`23_delivery_options_service.md`](23_delivery_options_service.md)
 
 - **Checkout Service**  
-  Orquestación del checkout y creación del pedido pendiente de pago.
+  Orquestación del checkout y creación del pedido pendiente de pago.  
+  📄 Documento: [`30_checkout_service.md`](30_checkout_service.md)
 
 - **Payment Status Service**  
-  Consulta y actualización del estado del pago.
+  Consulta y actualización del estado del pago.  
+  📄 Documento: [`31_payment_status_service.md`](31_payment_status_service.md)
 
 - **Tracking Service**  
-  Seguimiento del envío y estados logísticos.
+  Seguimiento del envío y estados logísticos.  
+  📄 Documento: [`32_tracking_service.md`](32_tracking_service.md)
 
 ---
 
@@ -174,8 +186,24 @@ Los contratos completos se describen en `03_eventos_y_colas.md`.
 ---
 
 ## 11. Lecturas relacionadas
-- Glosario y convenciones: `01_glosario_y_convenciones.md`
-- Modelo de datos MongoDB: `02_modelo_datos_mongo.md`
-- Eventos y colas: `03_eventos_y_colas.md`
-- Servicios de ingesta: `10_*.md`
-- Servicios transaccionales: `20_*.md` y `30_*.md`
+## 11. Lecturas relacionadas
+
+### Documentación base
+- Glosario y convenciones: [`01_glosario_y_convenciones.md`](01_glosario_y_convenciones.md)
+- Modelo de datos MongoDB: [`02_modelo_datos_mongo.md`](02_modelo_datos_mongo.md)
+- Eventos y colas: [`03_eventos_y_colas.md`](03_eventos_y_colas.md)
+
+### Servicios de ingesta
+- Catalog Ingestion Service: [`10_catalog_ingestion_service.md`](10_catalog_ingestion_service.md)
+- Pricing Ingestion Service: [`11_pricing_ingestion_service.md`](11_pricing_ingestion_service.md)
+- Promotions Ingestion Service: [`12_promotions_ingestion_service.md`](12_promotions_ingestion_service.md)
+
+### Servicios transaccionales
+- Cart Service: [`20_cart_service.md`](20_cart_service.md)
+- Pricing Service: [`21_pricing_service.md`](21_pricing_service.md)
+- Promotion Engine Service: [`22_promotion_engine_service.md`](22_promotion_engine_service.md)
+- Delivery Options Service: [`23_delivery_options_service.md`](23_delivery_options_service.md)
+- Checkout Service: [`30_checkout_service.md`](30_checkout_service.md)
+- Payment Status Service: [`31_payment_status_service.md`](31_payment_status_service.md)
+- Tracking Service: [`32_tracking_service.md`](32_tracking_service.md)
+
