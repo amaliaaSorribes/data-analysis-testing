@@ -1,79 +1,131 @@
 # Checkout Service
 
-## 1. Objetivo del servicio
-El **Checkout Service** es el microservicio responsable de **orquestar el proceso de checkout** y **generar el pedido previo al pago** a partir de un carrito válido.
+## Responsabilidad
+El **Checkout Service** es responsable de la **orquestación del proceso de checkout**. Coordina las **validaciones finales** del carrito antes de la creación del pedido, asegurando que los **precios**, **promociones** y **opciones de entrega** son coherentes y vigentes.
 
-Este servicio representa el **punto de no retorno funcional**: a partir de aquí el carrito deja de ser editable y se convierte en una intención de compra formal.
-
----
-
-## 2. Alcance funcional
-Dentro del Sistema de Cart & Checkout, el Checkout Service cubre:
-
-- Validación final del carrito
-- Revalidación de precios y promociones
-- Selección definitiva de entrega
-- Creación del pedido
-- Gestión del estado previo al pago
-
-### Fuera de alcance
-- Procesamiento del pago
-- Gestión del estado logístico
-- Tracking de pedidos
-- Comunicación con el cliente
+Este servicio es el **punto de transición** entre el carrito en sesión y el pedido persistente.
 
 ---
 
-## 3. Arquitectura y dependencias
+## Modelo (orders)
 
-### Tipo de servicio
-- Microservicio **síncrono**
-- APIs REST
-- Stateless
-
-### Dependencias internas
-- **Cart Service** (bloqueo y lectura del carrito)
-- **Pricing Service** (pricing definitivo)
-- **Promotion Engine Service** (descuentos definitivos)
-- **Delivery Options Service** (coste final de entrega)
-- **MongoDB**: colección `orders`
-
----
-
-## 4. Modelo de datos
-
-### Colección MongoDB
+### Colección
 - **Nombre**: `orders`
-- **Owner**: Checkout Service
 
-### Esquema del documento (orientativo)
+### Descripción
+La colección `orders` almacena los pedidos creados durante el checkout, incluyendo su estado y los datos necesarios para el proceso de pago.
+
+### Campos principales
+- `orderId`
+- `cartId`
+- `items`
+- `amount`
+- `currency`
+- `status`
+- `createdAt`
+- `updatedAt`
+
+El esquema detallado se describe en `02_modelo_datos_mongo.md`.
+
+---
+
+## Endpoints
+
+### POST `/v1/checkout/validate` — Validar checkout
+Realiza las validaciones finales antes de crear el pedido.
+
+**Validaciones**
+- Precios vigentes
+- Promociones aplicables
+- Opciones de entrega válidas
+- Estado del carrito
+
+**Response (200)**
 ```json
 {
-  "_id": "ORDER-456789",
-  "cartId": "CART-123456",
-  "customerId": "CUST-789",
-  "status": "PENDING_PAYMENT",
-  "currency": "EUR",
-  "items": [
-    {
-      "sku": "SKU-001",
-      "quantity": 2,
-      "unitPrice": 25,
-      "lineTotal": 50
-    }
-  ],
-  "pricing": {
-    "subtotal": 50,
-    "discounts": 5.5,
-    "taxes": 5,
-    "deliveryCost": 4.99,
-    "total": 54.49
-  },
-  "delivery": {
-    "type": "HOME",
-    "postalCode": "28001",
-    "estimatedDays": 2
-  },
-  "createdAt": "2026-01-16T10:15:00Z",
-  "updatedAt": "2026-01-16T10:15:00Z"
+  "valid": true
 }
+```
+
+---
+
+### POST `/v1/checkout/orders` — Crear pedido
+
+Crea un pedido en estado **PENDING_PAYMENT**.
+
+**Request**
+
+```json
+{
+  "cartId": "UUID"
+}
+```
+
+**Response(201)**
+
+```json
+{
+  "orderId": "UUID",
+  "status": "PENDING_PAYMENT"
+}
+```
+
+---
+
+### GET `/v1/checkout/orders/{orderId}` — Obtener pedido
+
+Devuelve la información del pedido.
+
+**Response (200)**
+
+```json
+{
+  "orderId": "UUID",
+  "status": "PENDING_PAYMENT",
+  "amount": 48.38,
+  "currency": "EUR"
+}
+```
+
+---
+
+### Estados y transiciones
+
+Los pedidos pueden encontrarse en los siguientes estados:
+
+* `DRAFT` → pedido creado internamente, no visible
+* `PENDING_PAYMENT` → pendiente de pago
+* `PAID` → pago confirmado
+* `FAILED` → pago fallido
+
+### Transiciones permitidas
+
+* `DRAFT` → `PENDING_PAYMENT`
+* `PENDING_PAYMENT` → `PAID`
+* `PENDING_PAYMENT` → `FAILED`
+
+---
+
+## Errores
+
+**Errores funcionales**
+
+* `404 CART_NOT_FOUND`
+* `409 CART_INVALID_STATE`
+* `422 VALIDATION_FAILED`
+
+**Ejemplo**
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed for checkout"
+  }
+}
+```
+
+**Errores funcionales**
+
+* `500 INTERNAL_ERROR`
+* `503 SERVICE_UNAVAILABLE`

@@ -1,60 +1,133 @@
 # Pricing Service
 
-## 1. Objetivo del servicio
-El **Pricing Service** es el microservicio responsable de calcular los **precios base, impuestos y totales** de los productos de un carrito o de una solicitud de pricing.
+## Responsabilidad
+El **Pricing Service** es responsable del **cálculo de precios base y totales** a partir de los ítems de un carrito o de una lista de líneas. Aplica las **reglas de pricing** vigentes teniendo en cuenta impuestos, redondeos, moneda y canal.
 
-Este servicio actúa como la **fuente de verdad del dominio de precios**, desacoplando el cálculo económico del resto de la lógica de carrito y checkout.
-
----
-
-## 2. Alcance funcional
-Dentro del Sistema de Cart & Checkout, el Pricing Service cubre:
-
-- Cálculo de precios unitarios
-- Cálculo de subtotales
-- Aplicación de impuestos
-- Cálculo de totales por moneda
-- Respuesta de pricing orientativo en sesión
-
-### Fuera de alcance
-- Aplicación de promociones
-- Gestión de catálogos
-- Conversión de moneda
-- Persistencia de carritos u órdenes
+Este servicio proporciona un **quote** temporal que se utiliza durante la sesión de compra y en la validación previa al checkout.
 
 ---
 
-## 3. Arquitectura y dependencias
+## Dependencias (Mongo: prices, llamadas)
 
-### Tipo de servicio
-- Microservicio **síncrono**
-- Expuesto vía APIs REST
-- Stateless
+### Persistencia
+- **MongoDB**
+  - Colección: `prices`
+  - Contiene los precios base vigentes por producto, canal y moneda
 
-### Dependencias internas
-- **MongoDB**: colección `prices`
-- Consumido por:
-  - Cart Service
-  - Checkout Service
+### Dependencias externas
+- Cart Service (input de ítems)
+- Promotion Engine Service (opcional, si el pricing incluye descuentos)
+- Delivery Options Service (no requerido para el cálculo base)
 
 ---
 
-## 4. Modelo de datos
+## Endpoints
 
-### Colección MongoDB
-- **Nombre**: `prices`
-- **Owner**: Pricing Service
+### POST `/v1/pricing/quote` — Calcular quote
+Calcula el precio total de un conjunto de ítems aplicando reglas de pricing.
 
-### Esquema del documento (orientativo)
+**Request**
 ```json
 {
-  "_id": "SKU-001",
-  "sku": "SKU-001",
-  "price": 25.00,
   "currency": "EUR",
-  "taxRate": 0.10,
-  "effectiveFrom": "2026-01-01T00:00:00Z",
-  "effectiveTo": null,
-  "channel": "WEB",
-  "updatedAt": "2026-01-10T08:00:00Z"
+  "channel": "online",
+  "items": [
+    {
+      "sku": "SKU-12345",
+      "quantity": 2
+    }
+  ]
 }
+```
+**Response (200)**
+```json
+{
+  "subtotal": 39.98,
+  "taxes": 8.40,
+  "total": 48.38,
+  "currency": "EUR"
+}
+```
+
+---
+
+### GET `/v1/prices/{sku}` — Obtener precio base (opcional)
+
+Devuelve el precio base vigente de un producto para un canal y moneda.
+
+**Response (200)**
+```json
+{
+  "sku": "SKU-12345",
+  "amount": 19.99,
+  "currency": "EUR",
+  "channel": "online"
+}
+```
+
+---
+
+### Reglas de pricing
+
+* El precio base se obtiene desde la colección `prices`
+* Solo se considera el **precio vigente**
+* El cálculo es sensible a:
+    * Canal
+    * Moneda
+* Los impuestos se aplican según reglas configuradas
+* Los importes se redondean según la moneda
+* El servicio no persiste resultados de cálculo
+
+---
+
+# Errores
+
+**Errores funcionales**
+
+* `404 PRICE_NOT_FOUND`
+* `422 INVALID_CURRENCY`
+* `422 INVALID_ITEMS`
+
+**Ejemplo**
+
+```json
+{
+  "error": {
+    "code": "PRICE_NOT_FOUND",
+    "message": "No valid price found for SKU SKU-12345"
+  }
+}
+```
+**Errores técnicos**
+
+* `500 INTERNAL_ERROR`
+* `503 SERVICE_UNAVAILABLE`
+
+---
+
+# Ejemplos request / response
+
+## Quote con múltiples ítems
+
+**Request**
+
+```json
+{
+  "currency": "EUR",
+  "channel": "online",
+  "items": [
+    { "sku": "SKU-11111", "quantity": 1 },
+    { "sku": "SKU-22222", "quantity": 3 }
+  ]
+}
+```
+**Response**
+```json
+{
+  "subtotal": 89.97,
+  "taxes": 18.89,
+  "total": 108.86,
+  "currency": "EUR"
+}
+```
+

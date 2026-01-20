@@ -1,82 +1,231 @@
 # Cart Service
 
-## 1. Objetivo del servicio
-El **Cart Service** es el microservicio owner del **carrito de compra y de la sesión de compra del cliente**. Gestiona el ciclo de vida del carrito desde su creación hasta que se bloquea para iniciar el proceso de checkout.
+## Responsabilidad y límites
+El **Cart Service** es el **owner del carrito y de la sesión de compra**. Gestiona el ciclo de vida del carrito, los ítems que contiene y los cálculos “en sesión” necesarios para mostrar totales al usuario antes del checkout.
 
-Este servicio centraliza la lógica de:
-- Gestión de productos en el carrito
-- Cantidades y estado del carrito
-- Persistencia de la sesión de compra
-- Coordinación con servicios de pricing, promociones y entrega
-
----
-
-## 2. Alcance funcional
-Dentro del Sistema de Cart & Checkout, el Cart Service cubre:
-
-- Creación del carrito
-- Añadir, actualizar y eliminar productos
-- Gestión de cantidades
-- Recuperación del estado del carrito
-- Expiración de carritos inactivos
-- Bloqueo del carrito previo al checkout
+Este servicio es responsable de:
+- Crear y mantener carritos activos
+- Añadir, modificar y eliminar productos
+- Aplicar reglas básicas de negocio en sesión
+- Persistir el estado del carrito
+- Orquestar (o simular) llamadas a servicios de pricing, promociones y entrega para obtener un *quote* en sesión
 
 ### Fuera de alcance
-- Cálculo definitivo de precios
-- Aplicación final de promociones
-- Creación del pedido
-- Procesamiento de pagos
+- Aplicación definitiva de promociones
+- Cálculo final de impuestos
+- Creación de pedidos
+- Gestión del pago
 
 ---
 
-## 3. Arquitectura y dependencias
+## Modelo de datos (carts)
 
-### Tipo de servicio
-- Microservicio **síncrono**
-- Orientado a APIs REST
-- Stateless
-
-### Dependencias internas
-- **MongoDB**: colección `carts`
-- **Pricing Service** (consulta de precios)
-- **Promotion Engine Service** (descuentos orientativos)
-- **Delivery Options Service** (costes y disponibilidad)
-
----
-
-## 4. Modelo de datos
-
-### Colección MongoDB
+### Colección
 - **Nombre**: `carts`
-- **Owner**: Cart Service
 
-### Esquema del documento (orientativo)
+### Descripción
+La colección `carts` almacena el estado del carrito durante la sesión de compra, incluyendo ítems, totales y metadatos de expiración.
+
+### Campos principales
+- `cartId`
+- `items`
+- `currency`
+- `subtotal`
+- `discounts`
+- `total`
+- `status`
+- `expiresAt`
+
+El esquema detallado se describe en `02_modelo_datos_mongo.md`.
+
+---
+
+## Endpoints
+
+### POST `/v1/carts` — Crear carrito
+Crea un nuevo carrito vacío asociado a una sesión.
+
+**Response (201)**
 ```json
 {
-  "_id": "CART-123456",
-  "customerId": "CUST-789",
+  "cartId": "UUID",
+  "status": "ACTIVE"
+}
+```
+
+---
+
+### GET `/v1/carts/{cartId}` — Obtener carrito
+Devuelve el estado actual del carrito.
+
+**Response (201)**
+```json
+{
+  "cartId": "UUID",
+  "items": [],
+  "total": 0,
+  "currency": "EUR"
+}
+```
+
+----
+
+### POST `/v1/carts/{cartId}/items` — Añadir producto
+
+Añade un producto al carrito o incrementa su cantidad si ya existe.
+
+**Request**
+```json
+{
+  "sku": "SKU-12345",
+  "quantity": 1
+}
+```
+
+**Reponse (200)**
+```json
+{
+  "cartId": "UUID",
   "status": "ACTIVE",
-  "currency": "EUR",
   "items": [
     {
-      "sku": "SKU-001",
-      "name": "Producto ejemplo",
-      "quantity": 2,
-      "unitPrice": 25,
-      "totalPrice": 50
+      "sku": "SKU-12345",
+      "quantity": 1
     }
-  ],
-  "pricing": {
-    "subtotal": 50,
-    "discounts": 0,
-    "taxes": 5,
-    "total": 55
-  },
-  "delivery": {
-    "type": "HOME",
-    "cost": 4.99
-  },
-  "createdAt": "2026-01-16T09:00:00Z",
-  "updatedAt": "2026-01-16T09:10:00Z",
-  "expiresAt": "2026-01-16T11:00:00Z"
+  ]
 }
+```
+
+---
+
+### PATCH `/v1/carts/{cartId}/items/{sku}` — Incrementar / decrementar cantidad
+
+Modifica la cantidad de un producto existente en el carrito.
+
+**Request**
+```json
+{
+  "quantity": 2
+}
+```
+
+**Reponse (200)**
+```json
+{
+  "cartId": "UUID",
+  "items": [
+    {
+      "sku": "SKU-12345",
+      "quantity": 2
+    }
+  ]
+}
+
+```
+
+---
+
+### DELETE `/v1/carts/{cartId}/items/{sku}` — Eliminar producto
+
+Elimina un producto del carrito.
+
+**Response (201)**
+```json
+{}
+```
+
+---
+
+### POST `/v1/carts/{cartId}/merge` — Merge de carritos (opcional)
+
+Fusiona el carrito actual con otro carrito (por ejemplo, al autenticar un usuario).
+
+**Request**
+```json
+{
+  "sourceCartId": "UUID"
+}
+```
+
+**Reponse (200)**
+```json
+{
+  "cartId": "UUID",
+  "merged": true
+}
+```
+
+---
+
+### POST `/v1/carts/{cartId}/lock` — Bloquear carrito (opcional)
+
+Bloquea el carrito antes de iniciar el proceso de pago (freeze before payment).
+
+**Response (200)**
+```json
+{
+  "cartId": "UUID",
+  "status": "LOCKED"
+}
+```
+
+---
+
+### Reglas de negocio
+
+* La cantidad mínima por ítem es 1
+* La cantidad máxima por ítem está limitada (configurable)
+* No se permite añadir productos inactivos
+* *Soft stock check*: no se garantiza stock, solo validación lógica
+* El carrito bloqueado (`LOCKED`) no admite modificaciones
+
+---
+
+### Interacciones con otros servicios
+
+Para mostrar totales “en sesión”, el Cart Service:
+
+* Llama o simula llamadas a:
+    * **Pricing Service** (precio base)
+    * **Promotion Engine Service** (descuentos)
+    * **Delivery Options Service** (coste de envío)
+* Combina los resultados para generar un *quote* temporal
+
+Estas interacciones no generan persistencia externa.
+
+---
+
+## Errores
+
+**Errores funcionales**
+
+* `404 CART_NOT_FOUND`
+* `404 ITEM_NOT_FOUND`
+* `409 CART_LOCKED`
+* `422 INVALID_QUANTITY`
+
+**Ejemplo**
+
+```json
+{
+  "error": {
+    "code": "CART_LOCKED",
+    "message": "The cart is locked and cannot be modified"
+  }
+}
+```
+
+**Errores técnico**
+
+* `500 INTERNAL_ERROR`
+* `503 SERVICE_UNAVAILABLE`
+
+---
+
+## Consideraciones de sesión / expiración
+
+* Cada carrito tiene un `expiresAt`
+* La expiración se renueva con actividad
+* Carritos expirados pasan a estado `EXPIRED`
+* Se elimina automáticamente mediante TTL en MongoDB
+* Un carrito expirado no puede reactivarse
