@@ -1,8 +1,8 @@
-# Documento Funcional – Persistencia de Carrito (2025-02-18)
+# Documento funcional – Persistencia de carrito (2025-02-18)
 
 ## Descripción General
 
-Actualmente, los usuarios pierden el carrito de la compra en distintas situaciones (cierre de sesión, cambio de dispositivo o navegador, cierre de la app en mobile). Esto genera abandono y frustración, ya que los usuarios esperan que el carrito se mantenga. Se decide persistir el carrito asociado al usuario cuando está logueado y recuperarlo al hacer login, manteniendo el funcionamiento actual para usuarios guest.
+Se detecta que los usuarios pierden el carrito de la compra en determinadas situaciones (cierre de sesión, cambio de dispositivo o navegador, cierre de la app en mobile). Esto genera abandono y frustración, ya que los usuarios esperan que el carrito persista como ocurre en otros e-commerce. Se decide modificar la lógica para que el carrito se asocie al usuario cuando esté logueado y se recupere al iniciar sesión.
 
 - **HU:**  
 - **Figma:**  
@@ -11,79 +11,36 @@ Actualmente, los usuarios pierden el carrito de la compra en distintas situacion
 
 ## Lógica Funcional
 
-- Asociar el carrito al `userId` cuando el usuario está logueado.
-- Mantener el funcionamiento actual para carritos de usuario guest.
+Actualmente, el carrito se crea sin asociarse a ningún usuario y se guarda únicamente en el frontend mediante un `cartId`. Si se pierde la sesión, el carrito se pierde y no hay forma de recuperarlo.  
+La nueva lógica será:
+
+- Persistir el carrito por `userId` cuando el usuario esté logueado.
 - Al hacer login, recuperar el carrito activo del usuario.
-- Solo se permite un carrito activo por usuario (no se realizará merge de carritos por el momento).
-- El objetivo es simplificar la solución en esta primera fase.
+- Mantener el funcionamiento actual para usuarios guest.
+- Solo se permitirá un carrito activo por usuario (no se realizará merge de carritos por el momento).
 
 ---
 
 ## Lógica Frontend
 
-- Guardar el identificador del carrito (`cartId`) como hasta ahora para usuarios guest.
-- Al hacer login, solicitar al backend el carrito asociado al usuario y mostrarlo.
-- Si el usuario no tiene carrito asociado, mantener el comportamiento actual.
+- El frontend debe guardar el `cartId` como hasta ahora para usuarios guest.
+- Al hacer login, debe solicitar al backend el carrito activo asociado al usuario y mostrarlo.
+- No se realizarán cambios en la lógica de merge de carritos.
 
 ---
 
 ## Lógica Backend
 
-- Persistir el carrito asociado al `userId` cuando el usuario está logueado.
-- Al recibir una petición de login, buscar y devolver el carrito activo del usuario.
-- No implementar lógica de merge de carritos en esta fase.
-- Mantener la lógica actual para carritos de usuarios guest (no logueados).
+- El backend debe asociar el carrito al `userId` cuando el usuario esté logueado.
+- Al iniciar sesión, el backend debe buscar y devolver el carrito activo del usuario.
+- No se implementará lógica de merge de carritos en esta fase.
 
 ---
 
 ## Partes Afectadas
 
-*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
+### Tipo de Usuario
+
+Aplica a usuarios logados y usuarios anónimos (guest).
 
 ---
-
-## Nuevos servicios
-
-*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
-
----
-
-## Dependencias con terceros
-
-*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
-
----
-
-## Analítica
-
-*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
-
----
-
-## Contingencias
-
-*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
-
----
-
-## Tipo de Usuario
-
-- Aplica tanto a usuarios anónimos (guest) como a usuarios logueados.
-
----
-
-## Método de Envio
-
-*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
-
----
-
-## Determinar tipo de mercancia
-
-*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
-
----
-
-## Determinar ventanas de flujo afectadas
-
-*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
