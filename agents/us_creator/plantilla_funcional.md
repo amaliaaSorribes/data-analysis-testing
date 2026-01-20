@@ -1,4 +1,4 @@
-# 999. Plantilla documentos funcionales
+# Plantilla documentos funcionales
 
 ## Descripción General
 

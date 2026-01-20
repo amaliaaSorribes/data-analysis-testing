@@ -1,42 +1,89 @@
-# 999. Documento funcional – Persistencia de carrito por usuario
+# Documento Funcional – Persistencia de Carrito (2025-02-18)
 
 ## Descripción General
 
-Actualmente, los usuarios pierden el carrito de compra en determinadas situaciones (cierre de sesión, cambio de dispositivo o navegador, o al volver tras varios días). Esto genera abandono y frustración, especialmente en mobile. El objetivo es persistir el carrito asociado al usuario logueado, de modo que se recupere automáticamente al iniciar sesión.
+Actualmente, los usuarios pierden el carrito de la compra en distintas situaciones (cierre de sesión, cambio de dispositivo o navegador, cierre de la app en mobile). Esto genera abandono y frustración, ya que los usuarios esperan que el carrito se mantenga. Se decide persistir el carrito asociado al usuario cuando está logueado y recuperarlo al hacer login, manteniendo el funcionamiento actual para usuarios guest.
+
+- **HU:**  
+- **Figma:**  
 
 ---
 
 ## Lógica Funcional
 
-- El carrito debe asociarse al `userId` cuando el usuario está logueado.
-- Al hacer login, se debe recuperar el carrito activo asociado al usuario.
-- Solo puede haber un carrito activo por usuario (no se realizará merge de carritos en esta fase).
-- Los carritos de usuarios no logueados (guest carts) seguirán funcionando como hasta ahora.
-- Si el usuario pierde la sesión, el carrito se recuperará al volver a iniciar sesión.
+- Asociar el carrito al `userId` cuando el usuario está logueado.
+- Mantener el funcionamiento actual para carritos de usuario guest.
+- Al hacer login, recuperar el carrito activo del usuario.
+- Solo se permite un carrito activo por usuario (no se realizará merge de carritos por el momento).
+- El objetivo es simplificar la solución en esta primera fase.
 
 ---
 
 ## Lógica Frontend
 
-- El frontend debe solicitar el carrito asociado al usuario tras el login.
-- Si el usuario no está logueado, se mantiene la lógica actual de carrito anónimo.
-- No se realizan cambios en la gestión de carritos para usuarios no logueados.
+- Guardar el identificador del carrito (`cartId`) como hasta ahora para usuarios guest.
+- Al hacer login, solicitar al backend el carrito asociado al usuario y mostrarlo.
+- Si el usuario no tiene carrito asociado, mantener el comportamiento actual.
 
 ---
 
 ## Lógica Backend
 
-- El backend debe asociar el carrito al `userId` cuando el usuario está logueado.
-- Al recibir una petición de login, el backend debe buscar y devolver el carrito activo del usuario.
-- No se implementa lógica de merge de carritos en esta fase.
-- Los carritos de usuarios anónimos no se asocian a ningún usuario.
+- Persistir el carrito asociado al `userId` cuando el usuario está logueado.
+- Al recibir una petición de login, buscar y devolver el carrito activo del usuario.
+- No implementar lógica de merge de carritos en esta fase.
+- Mantener la lógica actual para carritos de usuarios guest (no logueados).
 
 ---
 
 ## Partes Afectadas
 
-### Tipo de Usuario
-
-- Aplica a usuarios logados y anónimos (con diferencias en la persistencia del carrito).
+*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
 
 ---
+
+## Nuevos servicios
+
+*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
+
+---
+
+## Dependencias con terceros
+
+*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
+
+---
+
+## Analítica
+
+*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
+
+---
+
+## Contingencias
+
+*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
+
+---
+
+## Tipo de Usuario
+
+- Aplica tanto a usuarios anónimos (guest) como a usuarios logueados.
+
+---
+
+## Método de Envio
+
+*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
+
+---
+
+## Determinar tipo de mercancia
+
+*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
+
+---
+
+## Determinar ventanas de flujo afectadas
+
+*(No hay información en el transcript para completar esta sección, por lo que se elimina)*
