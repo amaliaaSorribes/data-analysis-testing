@@ -1,59 +1,59 @@
-# Documento Funcional – Cambio en endpoint de añadir al carrito (2025-03-18)
+```markdown
+# Documento Funcional - Cambio en endpoint de añadir al carrito (2025-03-18)
 
 ## Descripción General
 
-Unificación del comportamiento de añadir productos al carrito en web y app, utilizando un único endpoint para evitar inconsistencias en precios y promociones.
+Unificación del comportamiento al añadir productos al carrito entre la web y la app mediante la creación de un único endpoint. Esto busca resolver inconsistencias en precios y promociones, además de eliminar lógica duplicada.
 
 ---
 
 ## Lógica Funcional
 
-Actualmente existen dos endpoints distintos para añadir productos al carrito, lo que genera lógica duplicada y diferencias en el cálculo de precios y aplicación de promociones. Se propone unificar ambos flujos en un solo endpoint (`POST /v2/cart/items`) que reciba `productId` y `quantity`, recalcule precios y promociones, y devuelva el carrito completo. Tanto el frontend web como la app deberán consumir este nuevo endpoint.
-
----
-
-## Lógica Frontend
-
-El frontend, tanto web como app, deberá llamar al nuevo endpoint unificado (`POST /v2/cart/items`) enviando `productId` y `quantity`. El backend devolverá el carrito completo con los precios y promociones recalculados.
+- Se unifica el comportamiento de añadir al carrito en un único endpoint: `POST /v2/cart/items`.
+- El nuevo endpoint:
+  - Recibe `productId` y `quantity`.
+  - Recalcula precios y promociones.
+  - Devuelve el carrito completo.
+- Tanto el frontend web como la app utilizarán este nuevo endpoint.
+- Se elimina el endpoint antiguo de la app (`POST /v2/cart/add`).
+- Se mantiene compatibilidad temporal para el endpoint antiguo de la web (`POST /v1/cart/items`).
+- No se realizan cambios en el modelo de datos.
 
 ---
 
 ## Lógica Backend
 
 - Creación de un nuevo endpoint: `POST /v2/cart/items`.
-- El endpoint recibirá `productId` y `quantity`.
-- Se invocará siempre el servicio de precios (Pricing Service) y el motor de promociones (Promotion Engine) en el flujo de añadir al carrito.
-- El endpoint devolverá el carrito completo.
-- Se elimina el endpoint antiguo de la app.
-- Se mantiene compatibilidad temporal para el endpoint web.
-- No se modifica el modelo de datos.
+- El nuevo endpoint:
+  - Invoca al servicio de precios (Pricing Service) para recalcular precios.
+  - Aplica promociones mediante el motor de promociones (Promotion Engine).
+  - Devuelve el carrito completo.
+- Actualización del Cart Service para incluir la nueva versión del endpoint.
+- Eliminación del endpoint antiguo de la app.
+- Compatibilidad temporal para el endpoint antiguo de la web.
 
 ---
 
 ## Partes Afectadas
 
-No se especifica información sobre sites afectados.
+### Dependencias con terceros
 
----
-
-## Decisiones
-
-- Eliminación del endpoint antiguo de la app.
-- Compatibilidad temporal para el endpoint web.
-- No se cambia el modelo de datos.
+- Pricing Service: se invoca siempre en el flujo de añadir al carrito.
+- Promotion Engine: se aplica en el mismo flujo.
 
 ---
 
 ## Dudas pendientes
 
-- Definir el tiempo de mantenimiento de la compatibilidad.
+- Definir el tiempo que se mantendrá la compatibilidad temporal para el endpoint antiguo de la web.
 - Decidir si es necesario versionar el endpoint antiguo.
-- Determinar el comportamiento para clientes antiguos de la app.
+- Determinar el impacto en clientes antiguos de la app.
 
 ---
 
 ## Comentarios finales
 
-- Crear una US técnica.
-- Documentar el nuevo endpoint.
-- Coordinar con frontend.
+- Crear una US técnica para la implementación.
+- Documentar detalladamente el nuevo endpoint.
+- Coordinar con el equipo de frontend para la integración.
+```

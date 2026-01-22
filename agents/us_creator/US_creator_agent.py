@@ -14,7 +14,11 @@ def load_env_manual(path="../../.env"):
 
 load_env_manual()
 
-client = OpenAI()  # usa OPENAI_API_KEY del entorno
+# Configuración para GitHub Models
+client = OpenAI(
+    base_url="https://models.inference.ai.azure.com",
+    api_key=os.environ.get("GITHUB_TOKEN")
+)
 
 SYSTEM_PROMPT = """
 Eres un agente de documentación funcional.
@@ -51,7 +55,7 @@ def append_file(path, content):
 
 def generate_functional_doc(transcript, template):
     response = client.chat.completions.create(
-        model="gpt-4.1",
+        model="gpt-4o",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {
@@ -141,7 +145,7 @@ Formato obligatorio de User Story a rellenar:
 
 def generate_user_story(funcional_doc, US_ID):
     response = client.chat.completions.create(
-        model="gpt-4.1",
+        model="gpt-4o",
         messages=[
             {"role": "system", "content": gen_us_prompt(US_ID)},
             {
