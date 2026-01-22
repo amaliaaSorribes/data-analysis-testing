@@ -3,9 +3,7 @@ from openai import OpenAI
 
 TEMPLATE_FILE = "plantilla_funcional.md"
 
-MEETINGS_PATH = "../../docs/meetings/meeting-2025-02-18"
-TRANSCRIPT_FILE = os.path.join(MEETINGS_PATH, "transcript.md")
-OUTPUT_FILE = os.path.join(MEETINGS_PATH, "funcional.md")
+ALL_MEETINGS_PATH = "../../docs/meetings"
 
 def load_env_manual(path="../../.env"):
     with open(path) as f:
@@ -91,9 +89,8 @@ def next_us_id(paths=PATHS_TO_SCAN):
 
     return str(max(ids) + 1) if ids else "101"
 
-US_ID = next_us_id()
-
-US_SYSTEM_PROMPT = f"""
+def gen_us_prompt(US_ID):
+    US_SYSTEM_PROMPT = f"""
 Eres un agente que genera User Stories de backlog a partir de documentación funcional.
 
 Tu tarea:
@@ -139,12 +136,14 @@ Formato obligatorio de User Story a rellenar:
 ### Nuevo endpoint
 
 """
+    return US_SYSTEM_PROMPT
 
-def generate_user_story(funcional_doc):
+
+def generate_user_story(funcional_doc, US_ID):
     response = client.chat.completions.create(
         model="gpt-4.1",
         messages=[
-            {"role": "system", "content": US_SYSTEM_PROMPT},
+            {"role": "system", "content": gen_us_prompt(US_ID)},
             {
                 "role": "user",
                 "content": f"""
@@ -172,41 +171,55 @@ def slugify(text):
     text = re.sub(r"\s+", "_", text)
     return text.strip("_")
 
-LINK_FUNCIONAL = f"""
+def generate_link(output_file):
+    LINK_FUNCIONAL = f"""
 
----
+    ---
 
-## Referencias
+    ## Referencias
 
-- Documento funcional: [`funcional.md`]({OUTPUT_FILE})
-"""
+    - Documento funcional: [`funcional.md`]({output_file})
+    """
+    return LINK_FUNCIONAL
 
+    
 def main():
-    for root, _, files in os.walk(MEETINGS_PATH):
-        print(f"\nProcesando transcript de reunión en {root}")
-        if "funcional.md" not in files:
-            print("\nGenerando documento funcional...")
-            transcript = read_file(TRANSCRIPT_FILE)
-            template = read_file(TEMPLATE_FILE)
-            funcional_doc = generate_functional_doc(transcript, template)
-            write_file(OUTPUT_FILE, funcional_doc)
-            print(f"Documento funcional generado en {OUTPUT_FILE}")
+    for root, dirs, _ in os.walk(ALL_MEETINGS_PATH):
+        for dir in dirs:
+            MEETINGS_PATH = os.path.join(root, dir)
+            print(f"\nProcesando transcript de reunión en {MEETINGS_PATH}")
+            
+            files = os.listdir(MEETINGS_PATH)
+            
+            if "funcional.md" not in files:
+                TRANSCRIPT_FILE = os.path.join(MEETINGS_PATH, "transcript.md")
+                OUTPUT_FILE = os.path.join(MEETINGS_PATH, "funcional.md")
 
-            print("\nGenerando User Story...")
-            user_story_md = generate_user_story(funcional_doc)
+                print("\nGenerando documento funcional...")
+                transcript = read_file(TRANSCRIPT_FILE)
+                template = read_file(TEMPLATE_FILE)
+                funcional_doc = generate_functional_doc(transcript, template)
+                write_file(OUTPUT_FILE, funcional_doc)
+                print(f"Documento funcional generado en {OUTPUT_FILE}")
 
-            title = extract_us_title(user_story_md)
-            slug = slugify(title)
+                print("\nGenerando User Story...")
+                user_story_md = generate_user_story(funcional_doc, next_us_id())
 
-            us_filename = f"US-{US_ID}_{slug}.md"
-            us_path = os.path.join(BACKLOG_PATH, us_filename)
+                title = extract_us_title(user_story_md)
+                slug = slugify(title)
 
-            write_file(us_path, user_story_md)
-            append_file(us_path, LINK_FUNCIONAL)
+                US_ID = next_us_id()
+                us_filename = f"US-{US_ID}_{slug}.md"
+                us_path = os.path.join(BACKLOG_PATH, us_filename)
 
-            print(f"User Story generada en {us_path}")
-        else:
-            print("Documento funcional y user story ya existen, saltando generación.")
+                write_file(us_path, user_story_md)
+                append_file(us_path, generate_link(OUTPUT_FILE))
+
+                print(f"User Story generada en {us_path}")
+            else:
+                print("Documento funcional y user story ya existen, saltando a la siguiente meeting.")
+            print("\n" + "-"*50)
+            
 
 if __name__ == "__main__":
     main()
