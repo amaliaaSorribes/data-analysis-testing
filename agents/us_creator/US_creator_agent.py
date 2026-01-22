@@ -7,6 +7,15 @@ MEETINGS_PATH = "../../docs/meetings/meeting-2025-02-18"
 TRANSCRIPT_FILE = os.path.join(MEETINGS_PATH, "transcript.md")
 OUTPUT_FILE = os.path.join(MEETINGS_PATH, "funcional.md")
 
+def load_env_manual(path="../../.env"):
+    with open(path) as f:
+        for line in f:
+            if line.strip() and not line.startswith("#"):
+                key, value = line.strip().split("=", 1)
+                os.environ[key] = value
+
+load_env_manual()
+
 client = OpenAI()  # usa OPENAI_API_KEY del entorno
 
 SYSTEM_PROMPT = """
