@@ -89,7 +89,11 @@ Devuelve la información del pedido.
 
 ---
 
+<<<<<<< HEAD
 ## Estados y transiciones
+=======
+### Estados y transiciones
+>>>>>>> origin/amalia
 
 Los pedidos pueden encontrarse en los siguientes estados:
 

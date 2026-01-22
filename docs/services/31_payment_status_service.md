@@ -22,6 +22,10 @@ Devuelve el estado actual de un pago específico.
   "currency": "EUR"
 }
 ```
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/amalia
 ---
 
 ### GET `/v1/orders/{orderId}/payment-status` — Obtener estado de pago por pedido
@@ -37,6 +41,10 @@ Devuelve el estado del pago asociado a un pedido.
   "status": "AUTHORIZED"
 }
 ```
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/amalia
 ---
 
 ### POST `/v1/payments/webhook` — Webhook de pago (simulado)

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Secrets
 .env
 .env.*
@@ -13,3 +14,11 @@ venv/
 # Python
 __pycache__/
 *.pyc
+=======
+# Entornos virtuales
+.venv/
+venv/
+
+# Archivos de configuración de entorno
+.env
+>>>>>>> origin/amalia
