@@ -2,6 +2,10 @@
 .env
 .env.*
 
+# Allow example env file
+!.env.example
+
+
 # Virtual environments
 .venv/
 venv/
