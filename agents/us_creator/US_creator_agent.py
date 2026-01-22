@@ -89,9 +89,8 @@ def next_us_id(paths=PATHS_TO_SCAN):
 
     return str(max(ids) + 1) if ids else "101"
 
-US_ID = next_us_id()
-
-US_SYSTEM_PROMPT = f"""
+def gen_us_prompt(US_ID):
+    US_SYSTEM_PROMPT = f"""
 Eres un agente que genera User Stories de backlog a partir de documentación funcional.
 
 Tu tarea:
@@ -137,12 +136,14 @@ Formato obligatorio de User Story a rellenar:
 ### Nuevo endpoint
 
 """
+    return US_SYSTEM_PROMPT
 
-def generate_user_story(funcional_doc):
+
+def generate_user_story(funcional_doc, US_ID):
     response = client.chat.completions.create(
         model="gpt-4.1",
         messages=[
-            {"role": "system", "content": US_SYSTEM_PROMPT},
+            {"role": "system", "content": gen_us_prompt(US_ID)},
             {
                 "role": "user",
                 "content": f"""
@@ -202,11 +203,12 @@ def main():
                 print(f"Documento funcional generado en {OUTPUT_FILE}")
 
                 print("\nGenerando User Story...")
-                user_story_md = generate_user_story(funcional_doc)
+                user_story_md = generate_user_story(funcional_doc, next_us_id())
 
                 title = extract_us_title(user_story_md)
                 slug = slugify(title)
 
+                US_ID = next_us_id()
                 us_filename = f"US-{US_ID}_{slug}.md"
                 us_path = os.path.join(BACKLOG_PATH, us_filename)
 
