@@ -6,9 +6,10 @@ El **Cart Service** es el **owner del carrito y de la sesión de compra**. Gesti
 Este servicio es responsable de:
 - Crear y mantener carritos activos
 - Añadir, modificar y eliminar productos
+- Recalcular precios y aplicar promociones al añadir productos al carrito, utilizando el Pricing Service y el Promotion Engine
 - Aplicar reglas básicas de negocio en sesión
 - Persistir el estado del carrito
-- Orquestar (o simular) llamadas a servicios de pricing, promociones y entrega para obtener un *quote* en sesión
+- Orquestar (o simular) llamadas a servicios externos relacionados con el carrito
 
 ### Fuera de alcance
 - Aplicación definitiva de promociones
@@ -95,6 +96,30 @@ Añade un producto al carrito o incrementa su cantidad si ya existe.
   ]
 }
 ```
+
+---
+
+### POST `/v2/cart/items` — Añadir producto al carrito
+**Descripción:**  
+Este endpoint permite añadir un producto al carrito unificado, recalculando precios y promociones. Devuelve el carrito completo actualizado.
+
+**Parámetros:**
+- **productId** (string, requerido): ID del producto a añadir.
+- **quantity** (integer, requerido): Cantidad del producto a añadir.
+
+**Dependencias:**
+- **Pricing Service:** Recalcula los precios de los productos en el carrito.
+- **Promotion Engine:** Aplica promociones activas al carrito.
+
+**Respuesta:**
+- **200 OK:** Carrito actualizado con los productos añadidos, precios y promociones aplicados.
+- **400 Bad Request:** Parámetros inválidos.
+- **500 Internal Server Error:** Error interno en el procesamiento.
+
+---
+
+### POST `/v2/cart/add` — [Deprecado]
+**Nota:** Este endpoint ha sido eliminado y reemplazado por `POST /v2/cart/items`. Se recomienda actualizar las integraciones existentes.
 
 ---
 

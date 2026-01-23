@@ -2,62 +2,63 @@
 # Propuesta de actualización - US-112
 
 ## Resumen de la US
-La US-112 introduce un nuevo endpoint unificado `POST /v2/cart/items` en el Cart Service para gestionar la adición de productos al carrito, eliminando inconsistencias en precios y promociones. Este endpoint reemplaza al antiguo endpoint de la app (`POST /v2/cart/add`) y mantiene compatibilidad temporal con el endpoint antiguo de la web (`POST /v1/cart/items`). No se realizan cambios en el modelo de datos.
+La US-112 introduce un nuevo endpoint unificado `POST /v2/cart/items` en el Cart Service para añadir productos al carrito, recalculando precios y promociones mediante el Pricing Service y el Promotion Engine. Este cambio elimina el endpoint antiguo de la app (`POST /v2/cart/add`) y mantiene compatibilidad temporal con el endpoint antiguo de la web (`POST /v1/cart/items`).
 
 ## Análisis de impacto
-La documentación del Cart Service debe actualizarse para reflejar el nuevo endpoint y los cambios en los endpoints existentes. Además, se deben mencionar las dependencias con el Pricing Service y el Promotion Engine Service. No se identifican impactos en otros servicios.
+La documentación del Cart Service debe actualizarse para reflejar el nuevo endpoint y los cambios en los endpoints existentes. Además, se deben mencionar las dependencias con el Pricing Service y el Promotion Engine en el contexto del nuevo endpoint.
 
 ## Cambios propuestos
 
 ### 20_cart_service.md
 
-#### Cambio 1: Actualización de la sección "Responsabilidad y límites"
+#### Cambio 1: Actualización de responsabilidades
 **Sección afectada:** Responsabilidad y límites  
-**Tipo de cambio:** Modificar  
+**Tipo de cambio:** Modificar
 
 **Justificación:**  
-El nuevo endpoint introduce una dependencia explícita con el Pricing Service y el Promotion Engine Service para recalcular precios y promociones. Esto debe reflejarse en la descripción de las responsabilidades del Cart Service.
+La introducción del nuevo endpoint implica que el Cart Service ahora debe recalcular precios y aplicar promociones al añadir productos al carrito, utilizando el Pricing Service y el Promotion Engine. Esto amplía las responsabilidades del servicio.
 
 **Contenido propuesto:**
 ```
 Este servicio es responsable de:
 - Crear y mantener carritos activos
 - Añadir, modificar y eliminar productos
+- Recalcular precios y aplicar promociones al añadir productos al carrito, utilizando el Pricing Service y el Promotion Engine
 - Aplicar reglas básicas de negocio en sesión
 - Persistir el estado del carrito
-- Orquestar (o simular) llamadas a servicios externos como el **Pricing Service** y el **Promotion Engine Service** para recalcular precios y promociones en tiempo real
+- Orquestar (o simular) llamadas a servicios externos relacionados con el carrito
 ```
 
 **Ubicación:**  
-Reemplazar la lista de responsabilidades actual en la sección "Responsabilidad y límites".
+Reemplazar la lista de responsabilidades existente en la sección "Responsabilidad y límites".
 
 ---
 
-#### Cambio 2: Añadir descripción del nuevo endpoint
+#### Cambio 2: Documentación del nuevo endpoint
 **Sección afectada:** Endpoints  
-**Tipo de cambio:** Añadir  
+**Tipo de cambio:** Añadir
 
 **Justificación:**  
-El nuevo endpoint `POST /v2/cart/items` debe documentarse para que los desarrolladores comprendan su propósito, parámetros y comportamiento.
+El nuevo endpoint `POST /v2/cart/items` debe documentarse para que los desarrolladores comprendan su propósito, parámetros y funcionamiento.
 
 **Contenido propuesto:**
 ```
-### POST `/v2/cart/items` — Añadir productos al carrito (unificado)
-Recibe un `productId` y una `quantity`, recalcula precios y promociones utilizando el Pricing Service y el Promotion Engine, y devuelve el carrito completo.
+### POST `/v2/cart/items` — Añadir producto al carrito
+**Descripción:**  
+Este endpoint permite añadir un producto al carrito unificado, recalculando precios y promociones. Devuelve el carrito completo actualizado.
 
-#### Parámetros
-- **Body (JSON)**:
-  - `productId` (string, requerido): ID del producto a añadir.
-  - `quantity` (integer, requerido): Cantidad del producto.
+**Parámetros:**
+- **productId** (string, requerido): ID del producto a añadir.
+- **quantity** (integer, requerido): Cantidad del producto a añadir.
 
-#### Respuesta
-- **200 OK**: Devuelve el carrito completo con los precios y promociones actualizados.
-- **400 Bad Request**: Si los parámetros son inválidos.
-- **500 Internal Server Error**: En caso de error interno.
+**Dependencias:**
+- **Pricing Service:** Recalcula los precios de los productos en el carrito.
+- **Promotion Engine:** Aplica promociones activas al carrito.
 
-#### Notas
-- Este endpoint reemplaza al antiguo `POST /v2/cart/add`.
-- Mantiene compatibilidad temporal con `POST /v1/cart/items` para la web.
+**Respuesta:**
+- **200 OK:** Carrito actualizado con los productos añadidos, precios y promociones aplicados.
+- **400 Bad Request:** Parámetros inválidos.
+- **500 Internal Server Error:** Error interno en el procesamiento.
 ```
 
 **Ubicación:**  
@@ -65,27 +66,27 @@ Añadir al final de la sección "Endpoints".
 
 ---
 
-#### Cambio 3: Marcar el endpoint antiguo como deprecado
+#### Cambio 3: Deprecación de endpoint antiguo
 **Sección afectada:** Endpoints  
-**Tipo de cambio:** Deprecar  
+**Tipo de cambio:** Deprecar
 
 **Justificación:**  
-El endpoint `POST /v2/cart/add` ha sido eliminado y debe marcarse como deprecado en la documentación para evitar confusiones.
+El endpoint `POST /v2/cart/add` de la app ha sido eliminado y debe indicarse como deprecado en la documentación.
 
 **Contenido propuesto:**
 ```
-### [Deprecado] POST `/v2/cart/add` — Añadir productos al carrito (antiguo)
-Este endpoint ha sido eliminado y reemplazado por `POST /v2/cart/items`. No debe ser utilizado en nuevas implementaciones.
+### POST `/v2/cart/add` — [Deprecado]
+**Nota:** Este endpoint ha sido eliminado y reemplazado por `POST /v2/cart/items`. Se recomienda actualizar las integraciones existentes.
 ```
 
 **Ubicación:**  
-Después de la descripción del nuevo endpoint.
+Modificar la descripción del endpoint `POST /v2/cart/add` en la sección "Endpoints".
 
 ---
 
 ## Recomendaciones
-1. Asegurarse de que los equipos de desarrollo y QA estén informados sobre la eliminación del endpoint antiguo (`POST /v2/cart/add`) para evitar su uso en nuevas integraciones.
-2. Actualizar cualquier documentación externa o tutoriales que mencionen el endpoint antiguo.
+1. Asegurarse de que los desarrolladores externos estén informados sobre la deprecación del endpoint `POST /v2/cart/add`.
+2. Revisar la documentación del Pricing Service y el Promotion Engine para verificar que no se requieran cambios adicionales relacionados con las dependencias introducidas.
 
 ## Comandos de aplicación
 ```bash
