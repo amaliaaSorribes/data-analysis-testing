@@ -1,0 +1,26 @@
+# Archivos de estado del sistema
+.processed_us.json
+.applied_proposals.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env

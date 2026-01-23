@@ -77,9 +77,9 @@ Genera el documento funcional final en Markdown.
     )
     return response.choices[0].message.content
 
-BACKLOG_PATH = "../../docs/backlog"
+BACKLOG_PATH = "../../docs/backlog/to_do"
 
-PATHS_TO_SCAN = ["../../docs/releases", "../../docs/backlog"]
+PATHS_TO_SCAN = ["../../docs/releases", "../../docs/backlog/to_do", "../../docs/backlog/in_progress", "../../docs/backlog/done"]
 
 def next_us_id(paths=PATHS_TO_SCAN):
     ids = []
