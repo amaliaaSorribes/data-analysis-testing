@@ -2,7 +2,7 @@
 
 ## Descripción General
 
-Se busca mejorar la claridad de los mensajes de error que se muestran a los usuarios en el proceso de checkout. Actualmente, todos los errores muestran un mensaje genérico, lo que genera confusión y abandono en el último paso. El objetivo es mostrar mensajes de error más específicos y entendibles para el usuario, diferenciando al menos entre error de pago, falta de stock y error técnico genérico. El cambio solo afecta a los mensajes mostrados en checkout, sin modificar la lógica de negocio.
+Se busca mejorar los mensajes de error que aparecen en el checkout, ya que actualmente son genéricos y no informan al usuario del motivo del fallo. El objetivo es mostrar mensajes más claros y específicos para reducir el abandono y mejorar la experiencia de usuario.
 
 - **HU:**  
 - **Figma:**  
@@ -11,25 +11,20 @@ Se busca mejorar la claridad de los mensajes de error que se muestran a los usua
 
 ## Lógica Funcional
 
-- Mostrar mensajes de error más específicos en el checkout.
-- Diferenciar al menos entre:
-  - Error de pago.
-  - Falta de stock.
-  - Error técnico genérico.
-- Mantener los mensajes simples y entendibles.
-- No mostrar mensajes técnicos al usuario.
-- El cambio es únicamente en los mensajes, no en la lógica de negocio.
+Cuando ocurra un error en el checkout, se debe mostrar un mensaje específico según el motivo del fallo. Se diferenciarán al menos los siguientes casos:
+
+- Error de pago
+- Falta de stock
+- Error técnico genérico
+
+Los mensajes deben ser simples y entendibles, sin mostrar detalles técnicos al usuario.
 
 ---
 
 ## Partes Afectadas
 
-### Site afectados
+### Determinar ventanas de flujo afectadas
 
-Solo afecta al checkout.
+Afecta únicamente al checkout.
 
 ---
-
-## Determinar ventanas de flujo afectadas
-
-Afecta a todo el flujo de checkout.
