@@ -178,12 +178,12 @@ def slugify(text):
 def generate_link(output_file):
     LINK_FUNCIONAL = f"""
 
-    ---
+---
 
-    ## Referencias
+## Referencias
 
-    - Documento funcional: [`funcional.md`]({output_file})
-    """
+- Documento funcional: [`funcional.md`]({output_file})
+"""
     return LINK_FUNCIONAL
 
     
@@ -217,7 +217,8 @@ def main():
                 us_path = os.path.join(BACKLOG_PATH, us_filename)
 
                 write_file(us_path, user_story_md)
-                append_file(us_path, generate_link(OUTPUT_FILE))
+                link = generate_link(OUTPUT_FILE)
+                append_file(us_path, link)
 
                 print(f"User Story generada en {us_path}")
             else:
