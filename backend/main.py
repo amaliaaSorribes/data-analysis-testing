@@ -104,7 +104,20 @@ def upload_md(file: UploadFile = File(...)):
     save_md_file(file, folder_name)
     chat_state["current_meeting_date"] = None
 
-    return {"message": f"✅ Meeting creado y archivo transcript.md subido correctamente en {folder_name}"}
+    # --- Ejecutar agente ---
+    try:
+        # Guardamos la ruta actual
+        cwd = os.getcwd()
+        os.chdir("agents/us_creator")
+        result = os.system("python3 US_creator_agent_individual.py "+folder_name)
+        os.chdir(cwd)
+
+        if result != 0:
+            raise Exception("Error ejecutando US_creator_agent_individual.py")
+    except Exception as e:
+        return {"message": f"❌ Hubo un problema ejecutando el agente: {e}"}
+
+    return {"message": f"✅ Meeting creado, transcript.md subido y agente ejecutado correctamente en {folder_name}"}
 
 @app.post("/chat")
 def chat(msg: Message):

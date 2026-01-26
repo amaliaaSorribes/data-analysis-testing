@@ -7,6 +7,7 @@ const mdInput = document.getElementById("mdUpload");
 const chatOptionsHTML = `
 <ol>
   <li>Añadir meeting y transcript</li>
+  <li>Listar meetings</li>
   <li>Listar US's en backlog</li>
   <li>Ver una US específica</li>
   <li>Revisar US's en Done y proponer cambios a services</li>
