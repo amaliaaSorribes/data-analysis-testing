@@ -10,6 +10,7 @@ const chatOptionsHTML = `
   <li>Listar meetings</li>
   <li>Listar US's en backlog</li>
   <li>Ver una US específica</li>
+  <li>Simular cambio de estado de una US</li>
   <li>Revisar US Done y proponer cambios</li>
 </ol>`;
 

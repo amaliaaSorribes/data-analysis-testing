@@ -20,10 +20,15 @@ class Message(BaseModel):
 BACKLOG_PATH = Path("docs/backlog")
 MEETINGS_PATH = Path("docs/meetings")
 
+STATES = ["to-do", "in-progress", "done"]
+
 chat_state = {
     "awaiting_story_id": False,
     "waiting_for_date": False,
-    "current_meeting_date": None
+    "current_meeting_date": None,
+
+    "changing_state": False,
+    "selected_us_file": None
 }
 
 # ----------------- Funciones auxiliares ----------------- #
@@ -94,6 +99,19 @@ def search_user_story(story_id: str) -> dict:
     return {
         "response": f"❌ No encontré ninguna user story con id {story_id}."
     }
+
+def find_user_story(story_id: str):
+    for state in STATES:
+        state_path = BACKLOG_PATH / state
+        if not state_path.exists():
+            continue
+
+        for file in state_path.iterdir():
+            if file.is_file() and story_id in file.name:
+                return file, state
+
+    return None, None
+
 # ----------------- Endpoints ----------------- #
 
 @app.get("/")
@@ -165,10 +183,65 @@ def chat(msg: Message):
         except ValueError:
             return {"response": "❌ Formato incorrecto. Usa YYYY-MM-DD (ej: 2025-01-02)"}
 
+    # --- Cambiar estado de una US ---
+    if chat_state["changing_state"] and not chat_state["selected_us_file"]:
+        file, state = find_user_story(text)
+
+        if not file:
+            return {"response": "❌ No encontré esa User Story."}
+
+        chat_state["selected_us_file"] = (file, state)
+
+        if state == "to-do":
+            return {"response": "📌 La US está en TO-DO. ¿Quieres subir su estado? (si/no)"}
+        elif state == "done":
+            return {"response": "📌 La US está en DONE. ¿Quieres bajar su estado? (si/no)"}
+        else:
+            return {"response": "📌 La US está en IN-PROGRESS. ¿Quieres subir o bajar su estado?"}
+
+    # --- Confirmar cambio de estado ---
+    if chat_state["selected_us_file"]:
+        file, state = chat_state["selected_us_file"]
+
+        direction = None
+        if state in ["to-do", "done"]:
+            if text in ["si", "yes", "ok"]:
+                direction = "up" if state == "to-do" else "down"
+            else:
+                chat_state["changing_state"] = False
+                chat_state["selected_us_file"] = None
+                return {"response": "❎ Cambio cancelado"}
+        else: 
+            if "sub" in text:
+                direction = "up"
+            elif "baj" in text:
+                direction = "down"
+            else:
+                return {"response": "❓ Responde con subir o bajar."}
+
+        idx = STATES.index(state)
+
+        if direction == "up" and idx < len(STATES) - 1:
+            new_state = STATES[idx + 1]
+        elif direction == "down" and idx > 0:
+            new_state = STATES[idx - 1]
+        else:
+            return {"response": "⚠️ No se puede mover la US en esa dirección."}
+
+        new_path = BACKLOG_PATH / new_state / file.name
+        shutil.move(str(file), new_path)
+
+        chat_state["changing_state"] = False
+        chat_state["selected_us_file"] = None
+
+        return {
+            "response": f"✅ US movida de {state.upper()} a {new_state.upper()}"
+        }
+
     # --- Menú principal ---
-    match = re.search(r"\b[1-5]|opciones\b", text)
+    match = re.search(r"\b[1-6]|opciones\b", text)
     if not match:
-        return {"response": "❌ Por favor elige un número del 1-5 o escribe 'opciones' para ver el menú."}
+        return {"response": "❌ Por favor elige un número del 1-6 o escribe 'opciones' para ver el menú."}
 
     option = match.group()
 
@@ -185,4 +258,7 @@ def chat(msg: Message):
         chat_state["awaiting_story_id"] = True
         return {"response": "🔎 ¿Qué user story quieres buscar? Introduce el ID."}
     elif option == "5":
+        chat_state["changing_state"] = True
+        return {"response": "🔁 ¿Qué User Story quieres cambiar de estado? Introduce el ID."}
+    elif option == "6":
         return {"response": "🐞 Esta opción aún no está implementada."}
