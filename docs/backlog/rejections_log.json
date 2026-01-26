@@ -1,0 +1,67 @@
+{
+  "metadata": {
+    "description": "Registro histórico de propuestas de cambios rechazadas",
+    "purpose": "Trazabilidad de decisiones para evitar re-proponer cambios ya rechazados"
+  },
+  "rejections": [
+    {
+      "timestamp": "2026-01-26T16:18:56.757068",
+      "date": "2026-01-26 16:18:56",
+      "us_id": "US-107",
+      "us_title": "Obtener detalle del carrito",
+      "us_file": "US-107_get_cart_detail.md",
+      "affected_documents": [
+        "20_cart_service.md",
+        "00_overview_cart_checkout.md"
+      ],
+      "proposed_changes_count": 2,
+      "reason": "Estamos probando el sistema de registro de rechazos",
+      "proposals_summary": [
+        {
+          "document": "20_cart_service.md",
+          "changes_count": 1,
+          "sections_affected": [
+            "Endpoints"
+          ]
+        },
+        {
+          "document": "00_overview_cart_checkout.md",
+          "changes_count": 1,
+          "sections_affected": [
+            "2. Alcance del sistema"
+          ]
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-01-26T16:20:11.713336",
+      "date": "2026-01-26 16:20:11",
+      "us_id": "US-105",
+      "us_title": "Actualizar cantidad de ítems del carrito",
+      "us_file": "US-105_update_item_quantity.md",
+      "affected_documents": [
+        "20_cart_service.md",
+        "00_overview_cart_checkout.md"
+      ],
+      "proposed_changes_count": 3,
+      "reason": "Estamos probando la acumulación de rechazos",
+      "proposals_summary": [
+        {
+          "document": "20_cart_service.md",
+          "changes_count": 1,
+          "sections_affected": [
+            "Endpoints"
+          ]
+        },
+        {
+          "document": "00_overview_cart_checkout.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "2. Alcance del sistema",
+            "4. Arquitectura a alto nivel"
+          ]
+        }
+      ]
+    }
+  ]
+}

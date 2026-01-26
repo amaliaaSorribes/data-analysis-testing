@@ -39,6 +39,8 @@ BASE_PATH = Path(__file__).parent.parent.parent
 BACKLOG_DONE_PATH = BASE_PATH / "docs" / "backlog" / "done"
 SERVICES_PATH = BASE_PATH / "docs" / "services"
 RELEASES_PATH = BASE_PATH / "docs" / "releases"
+REJECTIONS_LOG = BASE_PATH / "docs" / "backlog" / "rejections_log.json"
+REJECTIONS_LOG = BASE_PATH / "docs" / "backlog" / "rejections_log.json"
 
 # ============================================================================
 # ESTADOS DEL GRAFO
@@ -75,6 +77,55 @@ def list_service_docs() -> list[str]:
 # ACTUALIZADOR DE RELEASES
 #===========================================================================
 
+def register_rejection(us_file: str, us_id: str, us_title: str, affected_docs: list[str], proposals: list[dict], reason: str):
+    """Registra un rechazo en el log JSON"""
+    from datetime import datetime
+    
+    # Crear estructura del rechazo
+    rejection_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "us_id": us_id,
+        "us_title": us_title,
+        "us_file": str(Path(us_file).name),
+        "affected_documents": [Path(doc).name for doc in affected_docs],
+        "proposed_changes_count": sum(len(p.get("proposal", {}).get("changes", [])) for p in proposals),
+        "reason": reason,
+        "proposals_summary": [
+            {
+                "document": Path(p["file"]).name,
+                "changes_count": len(p.get("proposal", {}).get("changes", [])),
+                "sections_affected": [c.get("section", "N/A") for c in p.get("proposal", {}).get("changes", [])]
+            }
+            for p in proposals
+        ]
+    }
+    
+    # Leer log existente o crear nuevo
+    if REJECTIONS_LOG.exists():
+        with open(REJECTIONS_LOG, "r", encoding="utf-8") as f:
+            try:
+                rejections = json.load(f)
+            except json.JSONDecodeError:
+                rejections = {"rejections": []}
+    else:
+        rejections = {
+            "metadata": {
+                "description": "Registro histórico de propuestas de cambios rechazadas",
+                "purpose": "Trazabilidad de decisiones para evitar re-proponer cambios ya rechazados"
+            },
+            "rejections": []
+        }
+    
+    # Añadir nuevo rechazo
+    rejections["rejections"].append(rejection_entry)
+    
+    # Guardar
+    with open(REJECTIONS_LOG, "w", encoding="utf-8") as f:
+        json.dump(rejections, f, indent=2, ensure_ascii=False)
+    
+    return str(REJECTIONS_LOG)
+
 def get_next_release_version() -> tuple[str, str]:
     """Obtiene la siguiente versión de release y la fecha actual"""
     import re
@@ -108,6 +159,56 @@ def get_next_release_version() -> tuple[str, str]:
     date_str = datetime.now().strftime("%Y-%m-%d")
     
     return version, date_str
+
+def register_rejection(us_file: str, us_id: str, us_title: str, affected_docs: list[str], proposals: list[dict], reason: str):
+    """Registra un rechazo en el log JSON"""
+    from datetime import datetime
+    import json
+    
+    # Crear estructura del rechazo
+    rejection_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "us_id": us_id,
+        "us_title": us_title,
+        "us_file": str(Path(us_file).name),
+        "affected_documents": [Path(doc).name for doc in affected_docs],
+        "proposed_changes_count": sum(len(p.get("proposal", {}).get("changes", [])) for p in proposals),
+        "reason": reason,
+        "proposals_summary": [
+            {
+                "document": Path(p["file"]).name,
+                "changes_count": len(p.get("proposal", {}).get("changes", [])),
+                "sections_affected": [c.get("section", "N/A") for c in p.get("proposal", {}).get("changes", [])]
+            }
+            for p in proposals
+        ]
+    }
+    
+    # Leer log existente o crear nuevo
+    if REJECTIONS_LOG.exists():
+        with open(REJECTIONS_LOG, "r", encoding="utf-8") as f:
+            try:
+                rejections = json.load(f)
+            except json.JSONDecodeError:
+                rejections = {"rejections": []}
+    else:
+        rejections = {
+            "metadata": {
+                "description": "Registro histórico de propuestas de cambios rechazadas",
+                "purpose": "Trazabilidad de decisiones para evitar re-proponer cambios ya rechazados"
+            },
+            "rejections": []
+        }
+    
+    # Añadir nuevo rechazo
+    rejections["rejections"].append(rejection_entry)
+    
+    # Guardar
+    with open(REJECTIONS_LOG, "w", encoding="utf-8") as f:
+        json.dump(rejections, f, indent=2, ensure_ascii=False)
+    
+    return str(REJECTIONS_LOG)
 
 def archive_us_to_release(us_file: str, version: str, date_str: str, us_id: str, us_title: str):
     """Archiva una US en la carpeta de release correspondiente"""
@@ -519,9 +620,37 @@ REGLAS CRÍTICAS:
 def reject_node(state: AgentState) -> AgentState:
     """
     Nodo alternativo: REJECT
-    Termina sin aplicar cambios
+    Termina sin aplicar cambios y registra el rechazo
     """
-    console.print("\n[bold yellow]❌ Cambios rechazados. No se modificó ningún archivo.[/bold yellow]")
+    console.print("\n[bold yellow]❌ Cambios rechazados. No se modificó ningún archivo.[/bold yellow]\n")
+    
+    # Solicitar motivo del rechazo
+    console.print("[dim]Para trazabilidad, indica el motivo del rechazo:[/dim]")
+    console.print("[dim](Ejemplos: 'Cambios demasiado agresivos', 'Falta contexto', 'Enfoque incorrecto', etc.)[/dim]\n")
+    
+    reason = Prompt.ask(
+        "Motivo del rechazo",
+        default="No especificado"
+    )
+    
+    # Registrar rechazo
+    us_id = state["analysis"].get("us_id", "US-XXX")
+    us_title = state["analysis"].get("title", "Sin título")
+    
+    console.print("\n[cyan]📝 Registrando rechazo...[/cyan]")
+    
+    log_path = register_rejection(
+        us_file=state["us_file"],
+        us_id=us_id,
+        us_title=us_title,
+        affected_docs=state["affected_docs"],
+        proposals=state["proposals"],
+        reason=reason
+    )
+    
+    console.print(f"[green]✓[/green] Rechazo registrado en: {Path(log_path).relative_to(BASE_PATH)}")
+    console.print(f"[dim]   Motivo: {reason}[/dim]")
+    
     state["applied"] = False
     return state
 
@@ -593,40 +722,97 @@ def main():
     
     console.print(f"[green]✓[/green] Encontradas {len(done_files)} US en /backlog/done/\n")
     
-    # Por ahora procesamos la primera
-    # TODO: permitir selección o procesamiento en batch
-    us_file = str(done_files[0])
-    us_content = read_file(us_file)
+    # Mostrar lista de US disponibles
+    console.print("[bold cyan]User Stories disponibles:[/bold cyan]\n")
+    for i, file in enumerate(done_files, 1):
+        console.print(f"  {i}. {file.name}")
     
-    console.print(f"[cyan]📋 Procesando:[/cyan] {Path(us_file).name}\n")
+    console.print()
     
-    # Estado inicial
-    initial_state: AgentState = {
-        "us_file": us_file,
-        "us_content": us_content,
-        "analysis": {},
-        "affected_docs": [],
-        "proposals": [],
-        "human_decision": "reject",
-        "applied": False
-    }
+    # Solicitar selección
+    if len(done_files) == 1:
+        selected_indices = [0]
+        console.print("[yellow]Solo hay una US, procesándola automáticamente...[/yellow]\n")
+    else:
+        console.print("[dim]Opciones:[/dim]")
+        console.print("  • Un número: [cyan]1[/cyan]")
+        console.print("  • Varios separados por coma: [cyan]1,3,5[/cyan]")
+        console.print("  • Todas: [cyan]all[/cyan] o [cyan]todas[/cyan]\n")
+        
+        selection = Prompt.ask(
+            "¿Qué User Stories quieres procesar?",
+            default="all"
+        )
+        console.print()
+        
+        # Parsear selección
+        if selection.lower() in ["all", "todas", "todo"]:
+            selected_indices = list(range(len(done_files)))
+            console.print(f"[yellow]📦 Procesando todas las US ({len(done_files)})...[/yellow]\n")
+        else:
+            # Parsear números separados por coma
+            try:
+                numbers = [int(n.strip()) for n in selection.split(",")]
+                selected_indices = [n - 1 for n in numbers if 1 <= n <= len(done_files)]
+                
+                if not selected_indices:
+                    console.print("[red]❌ Selección inválida[/red]")
+                    return
+                    
+                console.print(f"[yellow]📦 Procesando {len(selected_indices)} US seleccionadas...[/yellow]\n")
+            except ValueError:
+                console.print("[red]❌ Formato inválido. Usa números separados por coma (ej: 1,3,5)[/red]")
+                return
     
-    # Construir y ejecutar grafo
+    # Construir grafo una vez
     graph = build_graph()
     
-    try:
-        final_state = graph.invoke(initial_state)
+    # Procesar cada US seleccionada
+    for idx, us_index in enumerate(selected_indices, 1):
+        us_file = str(done_files[us_index])
+        us_content = read_file(us_file)
         
-        console.print("\n" + "="*70)
-        if final_state.get("applied"):
-            console.print("[bold green]✅ Proceso completado: Cambios aplicados[/bold green]")
-        else:
-            console.print("[bold yellow]ℹ️  Proceso completado: Sin cambios[/bold yellow]")
-        console.print("="*70 + "\n")
+        if len(selected_indices) > 1:
+            console.print("\n" + "="*70)
+            console.print(f"[bold magenta]📋 US {idx}/{len(selected_indices)}[/bold magenta]")
+            console.print("="*70)
         
-    except Exception as e:
-        console.print(f"\n[bold red]❌ Error:[/bold red] {str(e)}")
-        raise
+        console.print(f"\n[cyan]📋 Procesando:[/cyan] {Path(us_file).name}\n")
+        
+        # Estado inicial
+        initial_state: AgentState = {
+            "us_file": us_file,
+            "us_content": us_content,
+            "analysis": {},
+            "affected_docs": [],
+            "proposals": [],
+            "human_decision": "reject",
+            "applied": False
+        }
+        
+        try:
+            final_state = graph.invoke(initial_state)
+            
+            console.print("\n" + "="*70)
+            if final_state.get("applied"):
+                console.print("[bold green]✅ Proceso completado: Cambios aplicados[/bold green]")
+            else:
+                console.print("[bold yellow]ℹ️  Proceso completado: Sin cambios[/bold yellow]")
+            console.print("="*70 + "\n")
+            
+        except Exception as e:
+            console.print(f"\n[bold red]❌ Error procesando {Path(us_file).name}:[/bold red] {str(e)}")
+            
+            if len(selected_indices) > 1:
+                continuar = Prompt.ask(
+                    "¿Continuar con las siguientes US?",
+                    choices=["si", "no"],
+                    default="si"
+                )
+                if continuar.lower() == "no":
+                    break
+            else:
+                raise
 
 if __name__ == "__main__":
     main()
