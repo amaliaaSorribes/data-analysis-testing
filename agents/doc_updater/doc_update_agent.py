@@ -146,9 +146,6 @@ def find_affected_docs_node(state: AgentState) -> AgentState:
     analysis = state["analysis"]
     service_docs = list_service_docs()
     
-    # Por ahora usamos lógica simple basada en keywords
-    # TODO: mejorar con embeddings/RAG si es necesario
-    
     affected = []
     
     # Siempre revisar el doc del servicio mencionado
@@ -308,14 +305,73 @@ def apply_changes_node(state: AgentState) -> AgentState:
     """
     console.print("\n[bold cyan]⚙️  APPLIER:[/bold cyan] Aplicando cambios...")
     
-    # TODO: Implementar lógica real de aplicación de cambios
-    # Por ahora solo simula
+    analysis = state["analysis"]
+    us_content = state["us_content"]
     
     for prop in state["proposals"]:
         doc_path = prop["file"]
         changes = prop["proposal"].get("changes", [])
         
-        console.print(f"[green]✓[/green] Aplicado {len(changes)} cambios en {Path(doc_path).name}")
+        if not changes:
+            continue
+            
+        # Leer contenido actual del documento
+        doc_content = read_file(doc_path)
+        doc_name = Path(doc_path).name
+        
+        # Usar LLM para aplicar los cambios al documento completo
+        apply_prompt = f"""
+Eres un experto técnico que actualiza documentación de microservicios.
+
+DOCUMENTO ACTUAL ({doc_name}):
+{doc_content}
+
+CAMBIOS A APLICAR:
+{json.dumps(changes, indent=2, ensure_ascii=False)}
+
+CONTEXTO (User Story que motiva los cambios):
+{us_content}
+
+TAREA:
+Aplica TODOS los cambios propuestos al documento actual y devuelve el documento COMPLETO actualizado.
+
+REGLAS CRÍTICAS:
+- Mantén TODO el contenido existente que no se modifica
+- Respeta EXACTAMENTE el formato markdown original
+- Aplica los cambios en las secciones correctas
+- Si un cambio dice "add", añade el contenido en la sección indicada
+- Si un cambio dice "modify", actualiza el contenido existente
+- Si un cambio dice "delete", elimina el contenido indicado
+- NO añadas comentarios, solo devuelve el markdown actualizado
+- NO uses marcadores como "// cambio aquí" o similares
+- Devuelve el documento COMPLETO, no solo las partes modificadas
+"""
+        
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Eres un experto en documentación técnica. Actualizas documentos aplicando cambios específicos mientras mantienes el formato y estructura original."},
+                {"role": "user", "content": apply_prompt}
+            ],
+            temperature=0.1
+        )
+        
+        updated_content = response.choices[0].message.content
+        
+        # Limpiar posibles marcadores de código markdown
+        if updated_content.startswith("```markdown"):
+            updated_content = updated_content.replace("```markdown\n", "", 1)
+        if updated_content.startswith("```"):
+            updated_content = updated_content.replace("```\n", "", 1)
+        if updated_content.endswith("```"):
+            updated_content = updated_content.rsplit("```", 1)[0]
+        
+        updated_content = updated_content.strip()
+        
+        # Guardar el archivo actualizado
+        write_file(doc_path, updated_content + "\n")
+        
+        console.print(f"[green]✓[/green] Aplicados {len(changes)} cambios en {doc_name}")
     
     state["applied"] = True
     
