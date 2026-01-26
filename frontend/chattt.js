@@ -10,7 +10,7 @@ const chatOptionsHTML = `
   <li>Listar meetings</li>
   <li>Listar US's en backlog</li>
   <li>Ver una US específica</li>
-  <li>Revisar US's en Done y proponer cambios a services</li>
+  <li>Revisar US Done y proponer cambios</li>
 </ol>`;
 
 uploadBtn.disabled = true;
