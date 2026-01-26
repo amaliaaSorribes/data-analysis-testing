@@ -127,13 +127,26 @@ def register_rejection(us_file: str, us_id: str, us_title: str, affected_docs: l
     return str(REJECTIONS_LOG)
 
 def get_next_release_version() -> tuple[str, str]:
-    """Obtiene la siguiente versión de release y la fecha actual"""
+    """Obtiene la versión de release para hoy (reutiliza si ya existe, crea nueva si no)"""
     import re
     from datetime import datetime
+    
+    # Fecha actual en formato YYYY-MM-DD
+    date_str = datetime.now().strftime("%Y-%m-%d")
     
     # Buscar todas las carpetas release-X.Y_*
     release_dirs = list(RELEASES_PATH.glob("release-*"))
     
+    # Verificar si ya existe un release con la fecha de hoy
+    for d in release_dirs:
+        if date_str in d.name:
+            # Ya existe un release para hoy, extraer su versión
+            match = re.match(r"release-(\d+)\.(\d+)_", d.name)
+            if match:
+                version = f"{match.group(1)}.{match.group(2)}"
+                return version, date_str
+    
+    # No existe release para hoy, crear uno nuevo
     if not release_dirs:
         # No hay releases, empezar en 1.0
         version = "1.0"
@@ -154,9 +167,6 @@ def get_next_release_version() -> tuple[str, str]:
             version = f"{last_major}.{last_minor + 1}"
         else:
             version = "1.0"
-    
-    # Fecha actual en formato YYYY-MM-DD
-    date_str = datetime.now().strftime("%Y-%m-%d")
     
     return version, date_str
 

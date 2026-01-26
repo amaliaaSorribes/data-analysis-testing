@@ -17,6 +17,10 @@ Mejoras y nuevas funcionalidades implementadas en este release.
 
 ---
 
+
+- **US-113 – Support Ticket Service Implementation**
+  - 📄 [Detalle US-113](./US-113_support_ticket_service_implementation.md)
+
 ## Documentos afectados
 
 > Los cambios aplicados actualizan la documentación acumulada en `/docs/services/`.
