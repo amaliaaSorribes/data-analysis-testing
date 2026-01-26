@@ -88,7 +88,7 @@ def search_user_story(story_id: str) -> dict:
             html = render_md(file.read_text(encoding="utf-8"))
 
             return {
-                "response_html": f"<b>📄 {file.name}</b><br><br>{html}"
+                "response_html": f"{html}"
             }
 
     return {
