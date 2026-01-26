@@ -5,14 +5,6 @@ TEMPLATE_FILE = "plantilla_funcional.md"
 
 ALL_MEETINGS_PATH = "../../docs/meetings"
 
-def load_env_manual(path="../../.env"):
-    with open(path) as f:
-        for line in f:
-            if line.strip() and not line.startswith("#"):
-                key, value = line.strip().split("=", 1)
-                os.environ[key] = value
-
-load_env_manual()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL"))
 
@@ -73,9 +65,9 @@ Genera el documento funcional final en Markdown.
     )
     return response.choices[0].message.content
 
-BACKLOG_PATH = "../../docs/backlog"
+BACKLOG_PATH = "../../docs/backlog/to_do"
 
-PATHS_TO_SCAN = ["../../docs/releases", "../../docs/backlog"]
+PATHS_TO_SCAN = ["../../docs/releases", "../../docs/backlog/to_do"]
 
 def next_us_id(paths=PATHS_TO_SCAN):
     ids = []
