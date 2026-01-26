@@ -14,10 +14,10 @@ El sistema Cart & Checkout cubre el ciclo completo desde la **ingesta de datos c
 - Orquestación del checkout
 - Gestión del estado del pago
 - Seguimiento del envío
+- Gestión de stock en tiempo real durante el checkout
 
 **Fuera de alcance** (explícito):
 - Pasarela de pago real (PSP)
-- Gestión de stock en tiempo real (se asume validación “soft”)
 - Facturación y postventa
 - Infraestructura (CI/CD, cloud, redes)
 
@@ -186,7 +186,6 @@ Los contratos completos se describen en `03_eventos_y_colas.md`.
 ---
 
 ## 11. Lecturas relacionadas
-## 11. Lecturas relacionadas
 
 ### Documentación base
 - Glosario y convenciones: [`01_glosario_y_convenciones.md`](01_glosario_y_convenciones.md)
@@ -206,4 +205,3 @@ Los contratos completos se describen en `03_eventos_y_colas.md`.
 - Checkout Service: [`30_checkout_service.md`](30_checkout_service.md)
 - Payment Status Service: [`31_payment_status_service.md`](31_payment_status_service.md)
 - Tracking Service: [`32_tracking_service.md`](32_tracking_service.md)
-

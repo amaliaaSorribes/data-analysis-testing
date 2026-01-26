@@ -319,3 +319,38 @@ Soportar el patrón **outbox** para publicación fiable de eventos.
 
 * `{ eventId: 1 }`
 * `{ published: 1 }`
+
+---
+
+## stock_validations
+
+**Owner**: cart-service  
+**Dominio**: Validaciones de Stock
+
+### Propósito
+Registrar las validaciones de stock realizadas durante el proceso de checkout para auditoría y análisis.
+
+### Esquema JSON orientativo
+```json
+{
+  "_id": "ObjectId",
+  "sku": "SKU-12345",
+  "quantity": 2,
+  "available": true,
+  "currentStock": 5,
+  "validatedAt": "2026-01-26T15:00:00Z"
+}
+```
+
+### Campos clave
+
+* `sku`
+* `validatedAt`
+
+### Índices
+
+* `{ sku: 1, validatedAt: 1 }`
+
+### Consideraciones
+
+* TTL de 7 días para los documentos en esta colección.
