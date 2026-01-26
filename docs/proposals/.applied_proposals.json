@@ -10,5 +10,11 @@
     "proposal_file": "US-113_service_changes.md",
     "us_file": "US-113_add_favorites_list_to_cart.md",
     "status": "approved_manual"
+  },
+  "US-114": {
+    "approved_at": "2026-01-26T11:53:02.799200",
+    "proposal_file": "US-114_service_changes.md",
+    "us_file": "US-114_add_wishlist_functionality_from_cart.md",
+    "status": "approved_manual"
   }
 }
