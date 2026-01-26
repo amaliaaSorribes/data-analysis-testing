@@ -4,6 +4,14 @@ const messages = document.getElementById("messages");
 const uploadBtn = document.getElementById("uploadBtn");
 const mdInput = document.getElementById("mdUpload");
 
+const chatOptionsHTML = `
+<ol>
+  <li>Añadir meeting y transcript</li>
+  <li>Listar US's en backlog</li>
+  <li>Ver una US específica</li>
+  <li>Revisar US's en Done y proponer cambios a services</li>
+</ol>`;
+
 uploadBtn.disabled = true;
 
 // Evento del botón de upload
@@ -54,7 +62,13 @@ async function send() {
     });
 
     const data = await res.json();
-    addMessage(data.response, "system");
+
+    // Mostrar las opciones si el backend lo indica
+    if (data.show_options) {
+      addMessageHTML(`📝 Mostrando opciones ${chatOptionsHTML}`, "system");
+    } else {
+      addMessage(data.response, "system");
+    }
 
     // 🔑 Habilitar upload si backend lo indica
     if (data.enable_upload) {
@@ -74,3 +88,20 @@ function addMessage(text, type) {
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
 }
+
+function addMessageHTML(html, type) {
+  const div = document.createElement("div");
+  div.className = `message ${type}`;
+  div.innerHTML = html;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+addMessageHTML(
+  `<p>
+      <b>¡Bienvenido al chat del sistema!</b><br>
+      ¿En qué puedo ayudarte hoy?
+    </p>` 
+    + chatOptionsHTML,
+  "system-message"
+);

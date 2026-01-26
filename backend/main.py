@@ -110,6 +110,16 @@ def upload_md(file: UploadFile = File(...)):
 def chat(msg: Message):
     text = msg.message.strip().lower()
 
+    if text == "exit" or text == "quit":
+        chat_state["awaiting_story_id"] = False
+        chat_state["waiting_for_date"] = False
+        chat_state["current_meeting_date"] = None
+        return {
+            "response": "🔄 Estás de vuelta en el menú principal",
+            "show_options": False,
+            "enable_upload": False
+        }
+
     # --- Buscar US ---
     if chat_state["awaiting_story_id"]:
         chat_state["awaiting_story_id"] = False
@@ -135,21 +145,23 @@ def chat(msg: Message):
             return {"response": "❌ Formato incorrecto. Usa YYYY-MM-DD (ej: 2025-01-02)"}
 
     # --- Menú principal ---
-    match = re.search(r"\b[1-4]\b", text)
+    match = re.search(r"\b[1-5]|opciones\b", text)
     if not match:
-        return {"response": "❌ Por favor elige un número del 1-4"}
+        return {"response": "❌ Por favor elige un número del 1-5 o escribe 'opciones' para ver el menú."}
 
     option = match.group()
 
-    if option == "1":
+    if option == "opciones":
+        return {"show_options": True}
+    elif option == "1":
         chat_state["waiting_for_date"] = True
         return {"response": "Para añadir un meeting, dime la fecha en formato YYYY-MM-DD 📅"}
-    if option == "2":
+    elif option == "2":
         return {"response": "Contenido de meetings:\n\n" + list_meetings()}
-    if option == "3":
+    elif option == "3":
         return {"response": "Contenido del backlog:\n\n" + list_backlog()}
-    if option == "4":
+    elif option == "4":
         chat_state["awaiting_story_id"] = True
         return {"response": "🔎 ¿Qué user story quieres buscar? Introduce el ID."}
-    if option == "5":
+    elif option == "5":
         return {"response": "🐞 Esta opción aún no está implementada."}
