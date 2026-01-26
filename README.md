@@ -154,7 +154,9 @@ code docs/releases/release-X.X_YYYY-MM-DD/indice.md
 
 ### Requisitos
 - Python 3.8+
-- Token de GitHub (para usar GitHub Models)
+- **Una de las siguientes opciones:**
+  - Token de GitHub (para usar GitHub Models - **gratis** 🆓)
+  - API Key de OpenAI (de pago 💳)
 
 ### Instalación
 
@@ -176,13 +178,33 @@ code docs/releases/release-X.X_YYYY-MM-DD/indice.md
     pip install -r requirements.txt
     ```
 
-3. **Configurar token de GitHub**
+3. **Configurar proveedor de IA**
+
     ```bash
     cp .env.example .env
-    # Editar .env y añadir tu GITHUB_TOKEN
+    ```
+
+    Edita el archivo `.env` y elige tu proveedor:
+
+    #### **Opción A: GitHub Models (Gratis)** 🆓
+    ```bash
+    AI_PROVIDER=github
+    GITHUB_TOKEN=tu_token_aqui
     ```
     
-    Obtén tu token en: https://github.com/settings/tokens
+    Obtén tu token en: https://github.com/settings/tokens  
+    **Ventaja:** Gratis con límites generosos  
+    **Modelo usado:** gpt-4o
+    
+    #### **Opción B: OpenAI API (De pago)** 💳
+    ```bash
+    AI_PROVIDER=openai
+    OPENAI_API_KEY=sk-tu-key-aqui
+    ```
+    
+    Obtén tu API key en: https://platform.openai.com/api-keys  
+    **Ventaja:** Sin límites (pagas por uso)  
+    **Modelo usado:** gpt-4o
 
 ---
 
@@ -228,13 +250,34 @@ echo "Done: $(ls docs/backlog/done/ | wc -l)"
 
 ## 🐛 Troubleshooting
 
-### Error de autenticación con GitHub
+### Error de autenticación
 ```bash
-# Verificar que el token está configurado
+# Verificar que el .env está configurado
 cat .env
 
-# Verificar acceso a GitHub Models
-# Ve a: https://github.com/marketplace/models
+# Opción 1: Si usas GitHub Models
+# - Verificar que AI_PROVIDER=github
+# - Verificar que GITHUB_TOKEN está correcto
+# - Solicitar acceso en: https://github.com/marketplace/models
+
+# Opción 2: Si usas OpenAI
+# - Verificar que AI_PROVIDER=openai
+# - Verificar que OPENAI_API_KEY está correcta
+# - Verificar saldo en: https://platform.openai.com/usage
+```
+
+### Cambiar de proveedor
+```bash
+# Editar .env
+nano .env
+
+# Cambiar AI_PROVIDER de "github" a "openai" o viceversa
+AI_PROVIDER=openai  # o "github"
+
+# Ejecutar agente - mostrará qué proveedor usa
+cd agents/us_creator
+python3 US_creator_agent.py
+# 🤖 Usando OpenAI API (gpt-4o)
 ```
 
 ### Propuesta no se genera

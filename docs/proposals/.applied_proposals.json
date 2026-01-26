@@ -4,5 +4,11 @@
     "proposal_file": "US-112_service_changes.md",
     "us_file": "US-112_unified_add_to_cart_endpoint.md",
     "status": "approved_manual"
+  },
+  "US-113": {
+    "approved_at": "2026-01-26T11:06:31.782357",
+    "proposal_file": "US-113_service_changes.md",
+    "us_file": "US-113_add_favorites_list_to_cart.md",
+    "status": "approved_manual"
   }
 }

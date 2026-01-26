@@ -2,6 +2,41 @@
 
 Este directorio contiene los agentes para gestionar el ciclo de vida de las User Stories y mantener la documentación sincronizada.
 
+## 🤖 Configuración de IA
+
+Los agentes soportan **dos proveedores de IA**:
+
+### **Opción 1: GitHub Models (Gratis)** 🆓
+```bash
+# .env
+AI_PROVIDER=github
+GITHUB_TOKEN=tu_token_aqui
+```
+- ✅ Gratis con límites generosos
+- ✅ Modelo: gpt-4o
+- 📝 Token: https://github.com/settings/tokens
+- 🌐 Acceso: https://github.com/marketplace/models
+
+### **Opción 2: OpenAI API (De pago)** 💳
+```bash
+# .env
+AI_PROVIDER=openai
+OPENAI_API_KEY=sk-tu-key-aqui
+```
+- ✅ Sin límites (pagas por uso)
+- ✅ Modelo: gpt-4o
+- 📝 API Key: https://platform.openai.com/api-keys
+
+Al ejecutar cualquier agente, verás qué proveedor está usando:
+```bash
+python3 US_creator_agent.py
+# 🤖 Usando GitHub Models (gpt-4o)
+# o
+# 🤖 Usando OpenAI API (gpt-4o)
+```
+
+---
+
 ## 🔄 Flujo completo
 
 ```
@@ -228,13 +263,39 @@ ls docs/proposals/rejected/
 ## 🔧 Configuración
 
 ### Variables de entorno (.env)
+
+Crea un archivo `.env` en la raíz del proyecto:
+
 ```bash
+cp .env.example .env
+```
+
+**Configuración mínima requerida:**
+
+```bash
+# Elegir proveedor de IA
+AI_PROVIDER=github  # o "openai"
+
+# Si usas GitHub Models:
 GITHUB_TOKEN=tu_token_aqui
+
+# Si usas OpenAI:
+OPENAI_API_KEY=sk-tu-key-aqui
 ```
 
 ### Dependencias
 ```bash
 pip install -r requirements.txt
+```
+
+### Verificar configuración
+```bash
+# Ver tu configuración actual
+cat .env
+
+# Probar agente (mostrará qué proveedor usa)
+cd agents/us_creator
+python3 US_creator_agent.py
 ```
 
 ---
@@ -280,8 +341,39 @@ cat agents/doc_updater/.processed_us.json
 cd agents/doc_updater
 python3 doc_updater_agent.py
 
-# Verificar token de GitHub
-echo $GITHUB_TOKEN
+# Verificar configuración de IA
+cat ../../.env
+```
+
+### Error de autenticación
+```bash
+# Error 401 - Bad credentials
+
+# Si usas GitHub Models:
+# 1. Verificar token en .env
+# 2. Verificar acceso a: https://github.com/marketplace/models
+# 3. Regenerar token si es necesario
+
+# Si usas OpenAI:
+# 1. Verificar API key en .env
+# 2. Verificar saldo en: https://platform.openai.com/usage
+# 3. Verificar que la key tiene permisos
+```
+
+### Cambiar de proveedor
+```bash
+# Editar .env
+nano .env
+
+# Cambiar AI_PROVIDER
+AI_PROVIDER=openai  # de "github" a "openai" o viceversa
+
+# Añadir la key correspondiente
+OPENAI_API_KEY=sk-...  # si cambias a openai
+
+# Ejecutar - verás el mensaje del proveedor activo
+python3 US_creator_agent.py
+# 🤖 Usando OpenAI API (gpt-4o)
 ```
 
 ### Error al aprobar propuesta

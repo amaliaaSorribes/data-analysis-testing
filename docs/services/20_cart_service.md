@@ -1,7 +1,7 @@
 # Cart Service
 
 ## Responsabilidad y límites
-El **Cart Service** es el **owner del carrito y de la sesión de compra**. Gestiona el ciclo de vida del carrito, los ítems que contiene y los cálculos “en sesión” necesarios para mostrar totales al usuario antes del checkout.
+El **Cart Service** es el **owner del carrito y de la sesión de compra**, así como de la gestión de la lista de favoritos del usuario. Gestiona el ciclo de vida del carrito, los ítems que contiene, los cálculos "en sesión" necesarios para mostrar totales al usuario antes del checkout, y las operaciones de favoritos, como añadir, listar, eliminar y mover productos entre el carrito y la lista de favoritos.
 
 Este servicio es responsable de:
 - Crear y mantener carritos activos
@@ -9,6 +9,7 @@ Este servicio es responsable de:
 - Recalcular precios y aplicar promociones al añadir productos al carrito, utilizando el Pricing Service y el Promotion Engine
 - Aplicar reglas básicas de negocio en sesión
 - Persistir el estado del carrito
+- Gestionar la lista de favoritos (añadir, listar, eliminar, mover al carrito)
 - Orquestar (o simular) llamadas a servicios externos relacionados con el carrito
 
 ### Fuera de alcance
@@ -191,6 +192,67 @@ Bloquea el carrito antes de iniciar el proceso de pago (freeze before payment).
 {
   "cartId": "UUID",
   "status": "LOCKED"
+}
+```
+
+---
+
+### POST `/v1/favorites` — Añadir producto a favoritos
+Añade un producto a la lista de favoritos del usuario logueado.
+
+**Request**
+```json
+{
+  "productId": "string"
+}
+```
+
+**Response (200)**
+```json
+{
+  "message": "Product added to favorites successfully"
+}
+```
+
+---
+
+### GET `/v1/favorites` — Listar favoritos
+Lista todos los productos en la lista de favoritos del usuario con precios actualizados.
+
+**Response (200)**
+```json
+[
+  {
+    "productId": "string",
+    "productName": "string",
+    "price": "number",
+    "fechaDeAñadido": "string"
+  }
+]
+```
+
+---
+
+### DELETE `/v1/favorites/{productId}` — Eliminar de favoritos
+Elimina un producto de la lista de favoritos.
+
+**Response (200)**
+```json
+{
+  "message": "Product removed from favorites successfully"
+}
+```
+
+---
+
+### POST `/v1/favorites/{productId}/move-to-cart` — Mover favorito al carrito
+Mueve un producto de la lista de favoritos al carrito y lo elimina de favoritos.
+
+**Response (200)**
+```json
+{
+  "message": "Product moved to cart successfully",
+  "cartId": "string"
 }
 ```
 

@@ -14,11 +14,24 @@ def load_env_manual(path="../../.env"):
 
 load_env_manual()
 
-# Configuración para GitHub Models
-client = OpenAI(
-    base_url="https://models.inference.ai.azure.com",
-    api_key=os.environ.get("GITHUB_TOKEN")
-)
+# Configuración del cliente según el proveedor
+AI_PROVIDER = os.environ.get("AI_PROVIDER", "github").lower()
+
+if AI_PROVIDER == "github":
+    # Usar GitHub Models
+    client = OpenAI(
+        base_url="https://models.inference.ai.azure.com",
+        api_key=os.environ.get("GITHUB_TOKEN")
+    )
+    print("🤖 Usando GitHub Models (gpt-4o)")
+elif AI_PROVIDER == "openai":
+    # Usar OpenAI directo
+    client = OpenAI(
+        api_key=os.environ.get("OPENAI_API_KEY")
+    )
+    print("🤖 Usando OpenAI API (gpt-4o)")
+else:
+    raise ValueError(f"AI_PROVIDER no válido: {AI_PROVIDER}. Use 'github' u 'openai'")
 
 SYSTEM_PROMPT = """
 Eres un agente de documentación funcional.
