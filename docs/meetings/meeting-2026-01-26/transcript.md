@@ -1,100 +1,113 @@
-# Notas reunión – problema autenticación y sesión de usuarios
+# Notas reunión – problema sincronización de stock en catálogo
 
 Fecha: 2026-01-26  
-Asistentes: Producto, Tech Lead, Frontend, Backend, UX  
-Tema: Usuarios pierden sesión y carrito al entrar a la web
+Asistentes: Producto, Negocio, Tech Lead, Backend, Operaciones  
+Tema: Inconsistencias entre stock mostrado y stock real
 
 ---
 
-- Soporte reporta quejas frecuentes sobre problemas de login
-- Los usuarios tienen que autenticarse varias veces
-- Pierden su carrito al hacer login
-- La sesión se pierde constantemente
-- En algunos casos no pueden acceder con credenciales válidas
+- Operaciones reporta problemas recurrentes
+- Usuarios compran productos que aparecen disponibles
+- Al procesar el pedido → sin stock real
+- Tienen que cancelar y reembolsar
+- Genera mala experiencia y coste operativo
 
 ---
 
 ## Situación actual
 
-- Sistema de autenticación separado del sistema de carritos
-- Cuando usuario hace login:
-  - se genera token de sesión
-  - se almacena en frontend
-  - pero carrito tiene solo `cartId`, sin `userId`
-- No hay lógica que vincule sesión con carrito
-- Token JWT solo contiene `userId`
-- Si usuario guest hace login → pierde su carrito
+- Sistema de catálogo recibe actualizaciones de stock vía eventos
+- Eventos vienen del sistema de inventario (legacy)
+- A veces hay retrasos de hasta 30 minutos
+- Frontend muestra stock del catálogo (desactualizado)
+- No hay validación en tiempo real al hacer checkout
 
 ---
 
-## Problema técnico identificado
+## Problema identificado
 
-- Usuario puede tener carrito como guest
-- Luego hace login
-- Sistema no sabe qué hacer con el carrito previo
-- Actualmente lo pierde
-- Genera frustración y abandono
+- Ingesta de stock es asíncrona
+- No hay mecanismo de validación en checkout
+- Frontend confía en dato del catálogo sin re-verificar
+- Picos de ventas agravan el problema
+- Mismo producto vendido varias veces simultáneamente
+
+---
+
+## Impacto en negocio
+
+- 15-20 cancelaciones por semana
+- Coste de reembolsos y gestión
+- Usuarios frustrados (baja satisfacción)
+- Algunos usuarios no vuelven
+- Problema especialmente grave en productos limitados / ofertas
 
 ---
 
 ## Solución propuesta
 
-- Crear endpoint unificado POST /v1/auth/login
-- Además de validar credenciales, gestiona asociación del carrito
-- Flujo:
-  1. valida credenciales
-  2. verifica si hay cartId en request (guest)
-  3. si existe, asocia carrito al userId
-  4. si usuario ya tenía carrito activo: reemplazar
-  5. devuelve token + cartId vinculado
+- Añadir validación de stock en tiempo real durante checkout
+- Nuevo endpoint: POST /v1/catalog/validate-stock
+- Recibe lista de SKUs + cantidades
+- Consulta sistema de inventario directamente (API síncrona)
+- Devuelve disponibilidad actualizada por producto
 
 ---
 
-## Cambios técnicos necesarios
+## Cambios técnicos
 
-- Nuevo endpoint: POST /v1/auth/login
-- Nuevo endpoint: GET /v1/carts/user/{userId}
-- Modificar colección carts:
-  - añadir campo `userId` (opcional)
-  - añadir índice: { userId: 1, status: 1 }
-  - añadir campo `lastAccessedAt`
-- Modificar POST /v1/carts para aceptar userId opcional
-- Lógica: si login con cartId guest → asociar a userId
-- Si usuario ya tenía carrito → reemplazar (no merge por ahora)
+- Nuevo endpoint en Catalog Service:
+  - POST /v1/catalog/validate-stock
+  - Request: { items: [{ sku, quantity }] }
+  - Response: { items: [{ sku, available: bool, currentStock: number }] }
+- Integración con API de inventario (REST)
+- Timeout configurado: 3 segundos máximo
+- Si falla validación → mostrar error claro al usuario
 
 ---
 
-## Persistencia mejorada
+## Flujo mejorado
 
-- Al asociar carrito a userId → persiste en BD
-- Usuario puede cerrar app / cambiar dispositivo
-- Al hacer login recupera su carrito con GET /v1/carts/user/{userId}
-- Carrito guardado hasta TTL o conversión a pedido
-
----
-
-## Otras consideraciones
-
-- TTL para usuarios logueados: 30 días (vs 24h para guests)
-- Seguridad: GET /v1/carts/user/{userId} solo accesible por propio usuario
-- Validar token JWT y verificar userId
-- Endpoints de gestión de items no cambian
-- Usuarios guest siguen funcionando igual
-- Merge de carritos se deja para US futura
+1. Usuario llega a checkout
+2. Frontend llama a POST /v1/catalog/validate-stock
+3. Backend consulta inventario en tiempo real
+4. Si todo OK → permite continuar
+5. Si algún producto sin stock → bloquea y notifica
 
 ---
 
-## Comentarios UX
+## Modelo de datos
 
-- Mejoraría conversión significativamente
-- Usuarios podrían añadir desde móvil y completar desde desktop
-- Considerar banner/tooltip incentivando login para "guardar carrito"
+- Añadir colección: stock_validations
+  - Registrar cada validación para auditoría
+  - Campos: timestamp, sku, requested, available, userId
+  - TTL: 7 días (solo para troubleshooting)
+
+---
+
+## Consideraciones técnicas
+
+- API de inventario tiene rate limit: 100 req/seg
+- Implementar circuit breaker si API cae
+- Cache de 30 segundos en validaciones (Redis)
+- Si servicio inventario no responde → modo degradado
+- Modo degradado: permitir compra con advertencia
+
+---
+
+## Alternativa discutida
+
+- Opción descartada: polling cada 5 min
+- Razón: no resuelve el problema real
+- Mejor: validación just-in-time
 
 ---
 
 ## Decisiones finales
 
-- Implementar asociación carrito-usuario en login
-- Mantener lógica simple: reemplazar, no merge
-- Actualizar documentación técnica
-- Crear US con este alcance
+- Implementar validación en tiempo real
+- Nuevo endpoint en catalog service
+- Integración con API de inventario
+- Circuit breaker y fallback
+- Registrar validaciones para auditoría
+- No cambiar lógica de ingesta asíncrona (se mantiene)
