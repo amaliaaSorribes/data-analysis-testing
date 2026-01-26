@@ -1,6 +1,6 @@
+import re, shutil, os, datetime
 from pathlib import Path
-import re
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,7 +8,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # SOLO para desarrollo
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -18,77 +18,138 @@ class Message(BaseModel):
     message: str
 
 BACKLOG_PATH = Path("docs/backlog")
-conversation_state = {"awaiting_story_id": False}
+MEETINGS_PATH = Path("docs/meetings")
+
+chat_state = {
+    "awaiting_story_id": False,
+    "waiting_for_date": False,
+    "current_meeting_date": None
+}
+
+# ----------------- Funciones auxiliares ----------------- #
+
+def create_meeting_folder(date: str) -> str:
+    """Crea la carpeta del meeting si no existe"""
+    folder_name = f"meeting-{date}"
+    path = MEETINGS_PATH / folder_name
+    path.mkdir(parents=True, exist_ok=True)
+    return folder_name
+
+def save_md_file(file: UploadFile, folder_name: str):
+    """Guarda el archivo .md dentro de la carpeta del meeting"""
+    file_path = MEETINGS_PATH / folder_name / "transcript.md"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+def list_backlog() -> str:
+    """Genera un listado del backlog"""
+    items = []
+    dirs = sorted([p for p in BACKLOG_PATH.iterdir() if p.is_dir()])
+    files = sorted([p for p in BACKLOG_PATH.iterdir() if p.is_file()])
+
+    for d in dirs:
+        items.append(f"📁 {d.name}")
+        inner_files = sorted([f for f in d.iterdir() if f.is_file()])
+        if inner_files:
+            for f in inner_files:
+                items.append(f"  └─ 📄 {f.name}")
+        else:
+            items.append("  └─ (vacía)")
+    for f in files:
+        items.append(f"📄 {f.name}")
+
+    return "\n".join(items)
+
+def list_meetings() -> str:
+    """Genera un listado de los meetings"""
+    items = []
+    dirs = sorted([p for p in MEETINGS_PATH.iterdir() if p.is_dir()])
+    files = sorted([p for p in MEETINGS_PATH.iterdir() if p.is_file()])
+
+    for d in dirs:
+        items.append(f"📁 {d.name}")
+        inner_files = sorted([f for f in d.iterdir() if f.is_file()])
+        if inner_files:
+            for f in inner_files:
+                items.append(f"  └─ 📄 {f.name}")
+        else:
+            items.append("  └─ (vacía)")
+    for f in files:
+        items.append(f"📄 {f.name}")
+
+    return "\n".join(items)
+
+def search_user_story(story_id: str) -> str:
+    """Busca un user story por ID"""
+    for file in BACKLOG_PATH.rglob("*"):
+        if file.is_file() and story_id in file.name:
+            return f"<b>📄 {file.name}</b>\n\n" + file.read_text(encoding="utf-8")
+    return f"❌ No encontré ninguna user story con id {story_id}."
+
+# ----------------- Endpoints ----------------- #
 
 @app.get("/")
 def root():
     return {"msg": "Backend activo 🚀"}
 
+@app.post("/upload-md")
+def upload_md(file: UploadFile = File(...)):
+    date = chat_state.get("current_meeting_date")
+    if not date:
+        raise HTTPException(status_code=400, detail="Primero dime la fecha del meeting antes de subir el archivo.")
+    if not file.filename.endswith(".md"):
+        raise HTTPException(status_code=400, detail="Solo se permiten archivos .md")
+
+    folder_name = create_meeting_folder(date)
+    save_md_file(file, folder_name)
+    chat_state["current_meeting_date"] = None
+
+    return {"message": f"✅ Meeting creado y archivo transcript.md subido correctamente en {folder_name}"}
+
 @app.post("/chat")
 def chat(msg: Message):
     text = msg.message.strip().lower()
 
-    # 🟡 Paso 2: esperando ID de user story
-    if conversation_state["awaiting_story_id"]:
-        conversation_state["awaiting_story_id"] = False
+    # --- Buscar US ---
+    if chat_state["awaiting_story_id"]:
+        chat_state["awaiting_story_id"] = False
+        return {"response": search_user_story(text)}
 
-        story_id = text
+    # --- Esperando fecha para nuevo meeting ---
+    if chat_state["waiting_for_date"]:
+        try:
+            datetime.datetime.strptime(text, "%Y-%m-%d")
+            folder_name = f"meeting-{text}"
+            path = MEETINGS_PATH / folder_name
 
-        for file in BACKLOG_PATH.rglob("*"):
-            if file.is_file() and story_id in file.name:
-                content = file.read_text(encoding="utf-8")
+            if path.exists():
+                return {"response": f"⚠️ Ya existe un meeting para la fecha {text}. Prueba con otra fecha."}
 
-                return {
-                    "response": (
-                        f"<b>📄 {file.name}</b>\n\n"
-                        + content
-                    )
-                }
+            chat_state["current_meeting_date"] = text
+            chat_state["waiting_for_date"] = False
 
-        return {"response": f"❌ No encontré ninguna user story con id {story_id}."}
+            return {"response": "✅ Fecha recibida. Ahora sube tu transcript en formato .md para crear el meeting 📄", 
+                    "enable_upload": True}
 
-    # 🟢 Menú principal
+        except ValueError:
+            return {"response": "❌ Formato incorrecto. Usa YYYY-MM-DD (ej: 2025-01-02)"}
+
+    # --- Menú principal ---
     match = re.search(r"\b[1-4]\b", text)
     if not match:
-        return {"response": "Por favor elige un número del 1-4"}
+        return {"response": "❌ Por favor elige un número del 1-4"}
 
     option = match.group()
 
     if option == "1":
-        return {"response": "🐞 Esta opción aún no está implementada."}
-
+        chat_state["waiting_for_date"] = True
+        return {"response": "Para añadir un meeting, dime la fecha en formato YYYY-MM-DD 📅"}
     if option == "2":
-        dirs = sorted([p for p in BACKLOG_PATH.iterdir() if p.is_dir()])
-        files = sorted([p for p in BACKLOG_PATH.iterdir() if p.is_file()])
-
-        items = []
-
-        for d in dirs:
-            items.append(f"📁 {d.name}")
-            inner_files = sorted([f for f in d.iterdir() if f.is_file()])
-
-            if inner_files:
-                for f in inner_files:
-                    items.append(f"  └─ 📄 {f.name}")
-            else:
-                items.append("  └─ (vacía)")
-
-        for f in files:
-            items.append(f"📄 {f.name}")
-
-        return {
-            "response": (
-                "Contenido del backlog:\n\n"
-                + "\n".join(items)
-            )
-        }
-
-    # 🟢 OPCIÓN 3 — buscar user story por ID
+        return {"response": "Contenido de meetings:\n\n" + list_meetings()}
     if option == "3":
-        conversation_state["awaiting_story_id"] = True
-        return {
-            "response": "🔎 ¿Qué user story quieres buscar? Introduce el ID."
-        }
-
+        return {"response": "Contenido del backlog:\n\n" + list_backlog()}
     if option == "4":
+        chat_state["awaiting_story_id"] = True
+        return {"response": "🔎 ¿Qué user story quieres buscar? Introduce el ID."}
+    if option == "5":
         return {"response": "🐞 Esta opción aún no está implementada."}

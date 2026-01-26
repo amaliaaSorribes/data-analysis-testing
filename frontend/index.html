@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>Chat del sistema</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styless.css" />
+  <link rel="icon" type="image/png" href="favicon.png" />
 </head>
 <body>
 
@@ -18,19 +19,23 @@
       </p>
       <ol>
         <li>Añadir meeting y transcript</li>
+        <li>Listar meetings</li>
         <li>Listar US's en backlog</li>
         <li>Ver una US especifica</li>
-        <li>Revisar US's en Done y propon cambios a services</li>
+        <li>Revisar US's en Done y propón cambios a services</li>
       </ol>
     </div>
   </div>
 
   <div id="input-area">
+    <button id="uploadBtn" disabled>+</button>
+    <input type="file" id="mdUpload" accept=".md" style="display:none" />
     <input id="input" placeholder="Escribe un mensaje..." />
     <button id="send-btn">Enviar</button>
   </div>
+
 </div>
 
-<script src="chat.js"></script>
+<script src="chatt.js"></script>
 </body>
 </html>
