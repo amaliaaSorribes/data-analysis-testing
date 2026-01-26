@@ -19,3 +19,9 @@ Listado incremental de releases organizados por sprint y user stories.
 ## Release 1.2 – 2025-02-12
 **Objetivo:** Mejorar la robustez del carrito y la experiencia de usuario.  
 📄 [Ver detalle del release](./release-1.2_2025-02-12/indice.md)
+
+---
+
+## Release 1.3 – 2026-01-26
+**Objetivo:** Mejoras y nuevas funcionalidades.  
+📄 [Ver detalle del release](./release-1.3_2026-01-26/indice.md)

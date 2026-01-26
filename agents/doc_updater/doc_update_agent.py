@@ -38,6 +38,7 @@ console = Console()
 BASE_PATH = Path(__file__).parent.parent.parent
 BACKLOG_DONE_PATH = BASE_PATH / "docs" / "backlog" / "done"
 SERVICES_PATH = BASE_PATH / "docs" / "services"
+RELEASES_PATH = BASE_PATH / "docs" / "releases"
 
 # ============================================================================
 # ESTADOS DEL GRAFO
@@ -69,6 +70,129 @@ def write_file(path: str, content: str):
 def list_service_docs() -> list[str]:
     """Lista todos los archivos .md en /docs/services/"""
     return [str(f) for f in SERVICES_PATH.glob("*.md")]
+
+#===========================================================================
+# ACTUALIZADOR DE RELEASES
+#===========================================================================
+
+def get_next_release_version() -> tuple[str, str]:
+    """Obtiene la siguiente versión de release y la fecha actual"""
+    import re
+    from datetime import datetime
+    
+    # Buscar todas las carpetas release-X.Y_*
+    release_dirs = list(RELEASES_PATH.glob("release-*"))
+    
+    if not release_dirs:
+        # No hay releases, empezar en 1.0
+        version = "1.0"
+    else:
+        # Extraer versiones y encontrar la más alta
+        versions = []
+        for d in release_dirs:
+            match = re.match(r"release-(\d+)\.(\d+)_", d.name)
+            if match:
+                major, minor = int(match.group(1)), int(match.group(2))
+                versions.append((major, minor))
+        
+        if versions:
+            # Ordenar y obtener la más alta
+            versions.sort()
+            last_major, last_minor = versions[-1]
+            # Incrementar minor
+            version = f"{last_major}.{last_minor + 1}"
+        else:
+            version = "1.0"
+    
+    # Fecha actual en formato YYYY-MM-DD
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    
+    return version, date_str
+
+def archive_us_to_release(us_file: str, version: str, date_str: str, us_id: str, us_title: str):
+    """Archiva una US en la carpeta de release correspondiente"""
+    # Crear nombre de carpeta release
+    release_dir_name = f"release-{version}_{date_str}"
+    release_dir = RELEASES_PATH / release_dir_name
+    
+    # Crear carpeta si no existe
+    release_dir.mkdir(exist_ok=True)
+    
+    # Mover archivo US
+    us_filename = Path(us_file).name
+    dest_path = release_dir / us_filename
+    
+    import shutil
+    shutil.move(us_file, str(dest_path))
+    
+    # Crear/actualizar indice.md del release
+    indice_path = release_dir / "indice.md"
+    
+    if indice_path.exists():
+        # Añadir US al índice existente
+        indice_content = read_file(str(indice_path))
+        
+        # Buscar sección "Historias incluidas"
+        us_entry = f"""\n- **{us_id} – {us_title}**
+  - 📄 [Detalle {us_id}](./{us_filename})
+"""
+        
+        # Insertar antes de "Documentos afectados" si existe, sino al final
+        if "## Documentos afectados" in indice_content:
+            indice_content = indice_content.replace(
+                "## Documentos afectados",
+                us_entry + "\n## Documentos afectados"
+            )
+        else:
+            indice_content += us_entry
+        
+        write_file(str(indice_path), indice_content)
+    else:
+        # Crear nuevo índice
+        indice_content = f"""# Release {version}
+
+Sprint del {date_str}
+
+---
+
+## Objetivo
+
+Mejoras y nuevas funcionalidades implementadas en este release.
+
+---
+
+## Historias incluidas
+
+- **{us_id} – {us_title}**
+  - 📄 [Detalle {us_id}](./{us_filename})
+
+---
+
+## Documentos afectados
+
+> Los cambios aplicados actualizan la documentación acumulada en `/docs/services/`.
+"""
+        write_file(str(indice_path), indice_content)
+    
+    # Actualizar indice_releases.md global
+    indice_releases_path = RELEASES_PATH / "indice_releases.md"
+    
+    if indice_releases_path.exists():
+        indice_releases = read_file(str(indice_releases_path))
+        
+        # Verificar si ya existe este release
+        if release_dir_name not in indice_releases:
+            # Añadir nuevo release al final
+            new_entry = f"""\n---
+
+## Release {version} – {date_str}
+**Objetivo:** Mejoras y nuevas funcionalidades.  
+📄 [Ver detalle del release](./{release_dir_name}/indice.md)
+"""
+            indice_releases += new_entry
+            write_file(str(indice_releases_path), indice_releases)
+    
+    return str(dest_path)
 
 # ============================================================================
 # NODOS DEL GRAFO
@@ -376,6 +500,19 @@ REGLAS CRÍTICAS:
     state["applied"] = True
     
     console.print("\n[bold green]✅ Todos los cambios aplicados correctamente[/bold green]")
+    
+    # Archivar US en release
+    us_file = state["us_file"]
+    us_id = analysis.get("us_id", "US-XXX")
+    us_title = analysis.get("title", "Sin título")
+    
+    console.print("\n[bold cyan]📦 Archivando US en release...[/bold cyan]")
+    
+    version, date_str = get_next_release_version()
+    new_path = archive_us_to_release(us_file, version, date_str, us_id, us_title)
+    
+    console.print(f"[green]✓[/green] US archivada en release-{version}_{date_str}")
+    console.print(f"   Nueva ubicación: {Path(new_path).relative_to(BASE_PATH)}")
     
     return state
 
