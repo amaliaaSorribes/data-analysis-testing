@@ -14,7 +14,7 @@ def load_env_manual(path="../../.env"):
 
 load_env_manual()
 
-client = OpenAI()  # usa OPENAI_API_KEY del entorno
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL"))
 
 SYSTEM_PROMPT = """
 Eres un agente de documentación funcional.
