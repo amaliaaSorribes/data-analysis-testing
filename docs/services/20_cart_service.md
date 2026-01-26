@@ -1,7 +1,7 @@
 # Cart Service
 
 ## Responsabilidad y límites
-El **Cart Service** es el **owner del carrito y de la sesión de compra**. Gestiona el ciclo de vida del carrito, los ítems que contiene y los cálculos “en sesión” necesarios para mostrar totales al usuario antes del checkout.
+El **Cart Service** es el **owner del carrito y de la sesión de compra**. Gestiona el ciclo de vida del carrito, los ítems que contiene y los cálculos “en sesión” necesarios para mostrar totales al usuario antes del checkout. Ahora también valida el precio actual de los productos al añadirlos al carrito, consultando el Pricing Service.
 
 Este servicio es responsable de:
 - Crear y mantener carritos activos
@@ -72,7 +72,7 @@ Devuelve el estado actual del carrito.
 
 ### POST `/v1/carts/{cartId}/items` — Añadir producto
 
-Añade un producto al carrito o incrementa su cantidad si ya existe.
+Añade un producto al carrito o incrementa su cantidad si ya existe. Antes de completar la operación, valida el precio actual del producto con el Pricing Service.
 
 **Request**
 ```json
@@ -82,7 +82,7 @@ Añade un producto al carrito o incrementa su cantidad si ya existe.
 }
 ```
 
-**Reponse (200)**
+**Response (200)**
 ```json
 {
   "cartId": "UUID",
@@ -90,11 +90,16 @@ Añade un producto al carrito o incrementa su cantidad si ya existe.
   "items": [
     {
       "sku": "SKU-12345",
-      "quantity": 1
+      "quantity": 1,
+      "priceChanged": false,
+      "oldPrice": null,
+      "newPrice": null
     }
   ]
 }
 ```
+
+Si el precio ha cambiado, el campo `priceChanged` será `true` y se incluirán los campos `oldPrice` y `newPrice`.
 
 ---
 

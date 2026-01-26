@@ -8,7 +8,7 @@ Este documento ofrece una **visión general** del sistema **Cart & Checkout** de
 ## 2. Alcance del sistema
 El sistema Cart & Checkout cubre el ciclo completo desde la **ingesta de datos comerciales** (catálogo, precios y promociones) hasta la **creación del pedido pendiente de pago**, incluyendo:
 
-- Gestión del carrito y sesión de compra
+- Gestión del carrito y sesión de compra, incluyendo validación de precios en tiempo real al añadir productos al carrito
 - Cálculo de precios y aplicación de promociones
 - Disponibilidad y coste de entrega en sesión
 - Orquestación del checkout
@@ -52,6 +52,7 @@ El sistema está pensado para un retailer omnicanal con:
 
 2. **Transaccionales (sync)**
    - Exponen APIs REST
+   - Validan precios en tiempo real al añadir productos al carrito mediante integración con Pricing Service
    - Son llamados por la web/app de compras
    - Operan en contexto de sesión
    - Orquestan cálculos y validaciones
