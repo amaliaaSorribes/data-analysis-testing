@@ -16,5 +16,10 @@
     "proposal_file": "US-114_service_changes.md",
     "us_file": "US-114_add_wishlist_functionality_from_cart.md",
     "status": "approved_manual"
+  },
+  "US-115": {
+    "rejected_at": "2026-01-26T13:35:05.664712",
+    "reason": "No es necesaria para el contexto del proyecto.",
+    "status": "rejected"
   }
 }
