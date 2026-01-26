@@ -67,7 +67,10 @@ async function send() {
     // Mostrar las opciones si el backend lo indica
     if (data.show_options) {
       addMessageHTML(`📝 Mostrando opciones ${chatOptionsHTML}`, "system");
-    } else {
+    } else if (data.response_html) {
+      addMessageHTML(data.response_html, "system");
+    }
+    else if (data.response) {
       addMessage(data.response, "system");
     }
 

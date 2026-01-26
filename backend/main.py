@@ -1,4 +1,4 @@
-import re, shutil, os, datetime
+import re, shutil, os, datetime, markdown
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
@@ -79,13 +79,21 @@ def list_meetings() -> str:
 
     return "\n".join(items)
 
-def search_user_story(story_id: str) -> str:
-    """Busca un user story por ID"""
+def render_md(md_text: str) -> str:
+    return markdown.markdown(md_text)
+
+def search_user_story(story_id: str) -> dict:
     for file in BACKLOG_PATH.rglob("*"):
         if file.is_file() and story_id in file.name:
-            return f"<b>📄 {file.name}</b>\n\n" + file.read_text(encoding="utf-8")
-    return f"❌ No encontré ninguna user story con id {story_id}."
+            html = render_md(file.read_text(encoding="utf-8"))
 
+            return {
+                "response_html": f"<b>📄 {file.name}</b><br><br>{html}"
+            }
+
+    return {
+        "response": f"❌ No encontré ninguna user story con id {story_id}."
+    }
 # ----------------- Endpoints ----------------- #
 
 @app.get("/")
@@ -136,7 +144,7 @@ def chat(msg: Message):
     # --- Buscar US ---
     if chat_state["awaiting_story_id"]:
         chat_state["awaiting_story_id"] = False
-        return {"response": search_user_story(text)}
+        return search_user_story(text)
 
     # --- Esperando fecha para nuevo meeting ---
     if chat_state["waiting_for_date"]:

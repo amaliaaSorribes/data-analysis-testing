@@ -1,4 +1,4 @@
 chmod +x start.sh
 ./start.sh
 
-requirements install fastapi, uvicorn, python-multipart
+requirements install fastapi, uvicorn, python-multipart, markdown
