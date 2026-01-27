@@ -29,8 +29,16 @@ from rich.prompt import Prompt
 # CONFIGURACIÓN
 # ============================================================================
 
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL"))  
+def load_env_manual(path="../../.env"):
+    with open(path) as f:
+        for line in f:
+            if line.strip() and not line.startswith("#"):
+                key, value = line.strip().split("=", 1)
+                os.environ[key] = value
+
+load_env_manual()
+
+client = OpenAI()  # usa OPENAI_API_KEY del entorno
 
 console = Console()
 
@@ -39,8 +47,9 @@ BASE_PATH = Path(__file__).parent.parent.parent
 BACKLOG_DONE_PATH = BASE_PATH / "docs" / "backlog" / "done"
 SERVICES_PATH = BASE_PATH / "docs" / "services"
 RELEASES_PATH = BASE_PATH / "docs" / "releases"
-REJECTIONS_LOG = BASE_PATH / "docs" / "backlog" / "rejections_log.json"
-REJECTIONS_LOG = BASE_PATH / "docs" / "backlog" / "rejections_log.json"
+PROPOSALS_PATH = BASE_PATH / "docs" / "proposals"
+REJECTED_LOG = PROPOSALS_PATH / "rejected" / "rejected.json"
+ACCEPTED_LOG = PROPOSALS_PATH / "accepted" / "accepted.json"
 
 # ============================================================================
 # ESTADOS DEL GRAFO
@@ -102,8 +111,8 @@ def register_rejection(us_file: str, us_id: str, us_title: str, affected_docs: l
     }
     
     # Leer log existente o crear nuevo
-    if REJECTIONS_LOG.exists():
-        with open(REJECTIONS_LOG, "r", encoding="utf-8") as f:
+    if REJECTED_LOG.exists():
+        with open(REJECTED_LOG, "r", encoding="utf-8") as f:
             try:
                 rejections = json.load(f)
             except json.JSONDecodeError:
@@ -121,10 +130,10 @@ def register_rejection(us_file: str, us_id: str, us_title: str, affected_docs: l
     rejections["rejections"].append(rejection_entry)
     
     # Guardar
-    with open(REJECTIONS_LOG, "w", encoding="utf-8") as f:
+    with open(REJECTED_LOG, "w", encoding="utf-8") as f:
         json.dump(rejections, f, indent=2, ensure_ascii=False)
     
-    return str(REJECTIONS_LOG)
+    return str(REJECTED_LOG)
 
 def get_next_release_version() -> tuple[str, str]:
     """Obtiene la versión de release para hoy (reutiliza si ya existe, crea nueva si no)"""
@@ -196,8 +205,8 @@ def register_rejection(us_file: str, us_id: str, us_title: str, affected_docs: l
     }
     
     # Leer log existente o crear nuevo
-    if REJECTIONS_LOG.exists():
-        with open(REJECTIONS_LOG, "r", encoding="utf-8") as f:
+    if REJECTED_LOG.exists():
+        with open(REJECTED_LOG, "r", encoding="utf-8") as f:
             try:
                 rejections = json.load(f)
             except json.JSONDecodeError:
@@ -215,12 +224,63 @@ def register_rejection(us_file: str, us_id: str, us_title: str, affected_docs: l
     rejections["rejections"].append(rejection_entry)
     
     # Guardar
-    with open(REJECTIONS_LOG, "w", encoding="utf-8") as f:
+    with open(REJECTED_LOG, "w", encoding="utf-8") as f:
         json.dump(rejections, f, indent=2, ensure_ascii=False)
     
-    return str(REJECTIONS_LOG)
+    return str(REJECTED_LOG)
 
-def archive_us_to_release(us_file: str, version: str, date_str: str, us_id: str, us_title: str):
+def register_acceptance(us_file: str, us_id: str, us_title: str, affected_docs: list[str], proposals: list[dict], reason: str, version: str, release_date: str):
+    """Registra una aceptación en el log JSON"""
+    from datetime import datetime
+    
+    # Crear estructura de la aceptación
+    acceptance_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "us_id": us_id,
+        "us_title": us_title,
+        "us_file": str(Path(us_file).name),
+        "affected_documents": [Path(doc).name for doc in affected_docs],
+        "applied_changes_count": sum(len(p.get("proposal", {}).get("changes", [])) for p in proposals),
+        "reason": reason,
+        "release": version,
+        "release_date": release_date,
+        "proposals_summary": [
+            {
+                "document": Path(p["file"]).name,
+                "changes_count": len(p.get("proposal", {}).get("changes", [])),
+                "sections_affected": [c.get("section", "N/A") for c in p.get("proposal", {}).get("changes", [])]
+            }
+            for p in proposals
+        ]
+    }
+    
+    # Leer log existente o crear nuevo
+    if ACCEPTED_LOG.exists():
+        with open(ACCEPTED_LOG, "r", encoding="utf-8") as f:
+            try:
+                acceptances = json.load(f)
+            except json.JSONDecodeError:
+                acceptances = {"accepted": []}
+    else:
+        acceptances = {
+            "metadata": {
+                "description": "Registro histórico de propuestas de cambios aceptadas y aplicadas",
+                "purpose": "Trazabilidad de decisiones y base para generar objetivos de release"
+            },
+            "accepted": []
+        }
+    
+    # Añadir nueva aceptación
+    acceptances["accepted"].append(acceptance_entry)
+    
+    # Guardar
+    with open(ACCEPTED_LOG, "w", encoding="utf-8") as f:
+        json.dump(acceptances, f, indent=2, ensure_ascii=False)
+    
+    return str(ACCEPTED_LOG)
+
+def archive_us_to_release(us_file: str, version: str, date_str: str, us_id: str, us_title: str, proposals: list[dict] = None):
     """Archiva una US en la carpeta de release correspondiente"""
     # Crear nombre de carpeta release
     release_dir_name = f"release-{version}_{date_str}"
@@ -236,6 +296,51 @@ def archive_us_to_release(us_file: str, version: str, date_str: str, us_id: str,
     import shutil
     shutil.move(us_file, str(dest_path))
     
+    # Generar resumen de cambios aplicados
+    changes_summary = ""
+    brief_summary = ""
+    if proposals:
+        # Lista detallada de cambios
+        changes_summary = "\n  - **Cambios aplicados:**\n"
+        for prop in proposals:
+            doc_name = Path(prop["file"]).name
+            changes = prop.get("proposal", {}).get("changes", [])
+            if changes:
+                sections = [c.get("section", "N/A") for c in changes]
+                sections_str = ", ".join(set(sections))
+                changes_summary += f"    - Modificado `{doc_name}`: {len(changes)} cambio(s) en {sections_str}\n"
+        
+        # Generar resumen breve con LLM
+        proposals_json = json.dumps([
+            {
+                "documento": Path(p["file"]).name,
+                "cambios": [{"seccion": c.get("section"), "accion": c.get("action")} for c in p.get("proposal", {}).get("changes", [])]
+            }
+            for p in proposals
+        ], indent=2, ensure_ascii=False)
+        
+        summary_prompt = f"""Genera un resumen MUY BREVE (máximo 2 frases) de estos cambios aplicados a documentación técnica.
+
+CAMBIOS:
+{proposals_json}
+
+US: {us_title}
+
+Responde solo con 1-2 frases concisas que resuman QUÉ se actualizó y POR QUÉ. No uses formato markdown, solo texto plano."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Eres un experto técnico que resume cambios de documentación de forma concisa."},
+                {"role": "user", "content": summary_prompt}
+            ],
+            temperature=0.2,
+            max_tokens=100
+        )
+        
+        brief_summary = response.choices[0].message.content.strip()
+        changes_summary += f"  - **Resumen:** {brief_summary}\n"
+    
     # Crear/actualizar indice.md del release
     indice_path = release_dir / "indice.md"
     
@@ -245,7 +350,7 @@ def archive_us_to_release(us_file: str, version: str, date_str: str, us_id: str,
         
         # Buscar sección "Historias incluidas"
         us_entry = f"""\n- **{us_id} – {us_title}**
-  - 📄 [Detalle {us_id}](./{us_filename})
+  - 📄 [Detalle {us_id}](./{us_filename}){changes_summary}
 """
         
         # Insertar antes de "Documentos afectados" si existe, sino al final
@@ -275,7 +380,7 @@ Mejoras y nuevas funcionalidades implementadas en este release.
 ## Historias incluidas
 
 - **{us_id} – {us_title}**
-  - 📄 [Detalle {us_id}](./{us_filename})
+  - 📄 [Detalle {us_id}](./{us_filename}){changes_summary}
 
 ---
 
@@ -538,6 +643,15 @@ def apply_changes_node(state: AgentState) -> AgentState:
     Nodo 5: APPLIER
     Aplica los cambios a los archivos si fueron aceptados
     """
+    # Solicitar justificación de la aceptación
+    console.print("\n[dim]Para trazabilidad, indica el motivo de la aceptación:[/dim]")
+    console.print("[dim](Ejemplos: 'Cambios necesarios y bien fundamentados', 'Mejora la documentación', 'Alineado con US', etc.)[/dim]\n")
+    
+    acceptance_reason = Prompt.ask(
+        "Motivo de la aceptación",
+        default="Cambios aprobados"
+    )
+    
     console.print("\n[bold cyan]⚙️  APPLIER:[/bold cyan] Aplicando cambios...")
     
     analysis = state["analysis"]
@@ -620,10 +734,27 @@ REGLAS CRÍTICAS:
     console.print("\n[bold cyan]📦 Archivando US en release...[/bold cyan]")
     
     version, date_str = get_next_release_version()
-    new_path = archive_us_to_release(us_file, version, date_str, us_id, us_title)
+    new_path = archive_us_to_release(us_file, version, date_str, us_id, us_title, state["proposals"])
     
     console.print(f"[green]✓[/green] US archivada en release-{version}_{date_str}")
     console.print(f"   Nueva ubicación: {Path(new_path).relative_to(BASE_PATH)}")
+    
+    # Registrar aceptación
+    console.print("\n[cyan]📝 Registrando aceptación...[/cyan]")
+    
+    log_path = register_acceptance(
+        us_file=us_file,
+        us_id=us_id,
+        us_title=us_title,
+        affected_docs=state["affected_docs"],
+        proposals=state["proposals"],
+        reason=acceptance_reason,
+        version=version,
+        release_date=date_str
+    )
+    
+    console.print(f"[green]✓[/green] Aceptación registrada en: {Path(log_path).relative_to(BASE_PATH)}")
+    console.print(f"[dim]   Motivo: {acceptance_reason}[/dim]")
     
     return state
 
