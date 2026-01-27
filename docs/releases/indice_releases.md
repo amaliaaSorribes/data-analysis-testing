@@ -31,3 +31,9 @@ Listado incremental de releases organizados por sprint y user stories.
 ## Release 1.4 – 2026-01-26
 **Objetivo:** Mejoras y nuevas funcionalidades.  
 📄 [Ver detalle del release](./release-1.4_2026-01-26/indice.md)
+
+---
+
+## Release 1.4 – 2026-01-27
+**Objetivo:** Mejoras y nuevas funcionalidades.  
+📄 [Ver detalle del release](./release-1.4_2026-01-27/indice.md)

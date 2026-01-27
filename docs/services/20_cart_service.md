@@ -176,6 +176,37 @@ Bloquea el carrito antes de iniciar el proceso de pago (freeze before payment).
 
 ---
 
+### PUT `/v1/carts/{cartId}/items/{productId}` — Actualizar cantidad de producto
+
+Permite actualizar la cantidad de un ítem existente en el carrito. La cantidad debe ser mayor a cero. El subtotal y los descuentos se recalculan automáticamente.
+
+**Request**
+```json
+{
+  "quantity": 2
+}
+```
+
+**Response (200)**
+```json
+{
+  "cartId": "UUID",
+  "status": "ACTIVE",
+  "items": [
+    {
+      "sku": "SKU-12345",
+      "quantity": 2,
+      "subtotal": 40.00,
+      "discounts": 5.00,
+      "total": 35.00
+    }
+  ],
+  "currency": "EUR"
+}
+```
+
+---
+
 ### Reglas de negocio
 
 * La cantidad mínima por ítem es 1

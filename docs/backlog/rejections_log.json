@@ -62,6 +62,29 @@
           ]
         }
       ]
+    },
+    {
+      "timestamp": "2026-01-27T13:17:09.725813",
+      "date": "2026-01-27 13:17:09",
+      "us_id": "US-114",
+      "us_title": "Combined Discount Calculation Correction",
+      "us_file": "US-114_combined_discount_calculation_correction.md",
+      "affected_documents": [
+        "20_cart_service.md",
+        "00_overview_cart_checkout.md"
+      ],
+      "proposed_changes_count": 2,
+      "reason": "HAciendo pruebas",
+      "proposals_summary": [
+        {
+          "document": "00_overview_cart_checkout.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "2. Alcance del sistema",
+            "4. Arquitectura a alto nivel"
+          ]
+        }
+      ]
     }
   ]
 }
