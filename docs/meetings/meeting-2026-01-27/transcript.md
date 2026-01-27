@@ -1,106 +1,98 @@
-# Notas reunión – errores en cálculo de descuentos combinados
+# Notas reunión – errores al actualizar cantidades en carrito
 
 Fecha: 2026-01-27  
-Asistentes: Producto, Backend, Marketing, QA  
-Tema: Descuentos combinados se calculan incorrectamente generando pérdidas
+Asistentes: Producto, Backend, Frontend, QA  
+Tema: Usuarios reportan errores al intentar modificar cantidades de productos en el carrito
 
 ---
 
-- Marketing detecta descuentos mayores a los esperados
-- Combinación de promociones genera cálculos erróneos
-- Descuento sobre descuento no se aplica correctamente
-- Pérdida económica estimada: 12.000€ este mes
-- 8 casos reportados con evidencia
+- 22 tickets reportados esta semana
+- Al cambiar cantidad → a veces no se actualiza
+- Doble-click genera duplicados
+- Cantidades negativas permitidas en algunos casos
+- Totales no se recalculan correctamente
+- Frustración del usuario
 
 ---
 
 ## Situación actual
 
-- Promotion Engine aplica descuentos secuencialmente
-- No hay orden de prioridad definido
-- Descuentos se aplican sobre precio ya descontado
-- Ejemplo: 20% + 10% debería ser 28% pero sistema aplica 30%
-- No hay validación de descuento máximo permitido
+- Frontend permite modificar cantidad sin validación
+- Backend no valida límites de cantidad
+- No hay debouncing en requests
+- Múltiples requests simultáneos causan inconsistencias
+- Sin validación de stock disponible al aumentar
 
 ---
 
 ## Problema identificado
 
-- Cálculo incorrecto de descuentos combinados
+- Falta validación robusta de cantidades
 - Ejemplo:
-  1. Producto: 100€
-  2. Descuento 1: 20% → 80€
-  3. Descuento 2: 10% sobre 80€ → 72€
-  4. Descuento real: 28% (correcto)
-  5. Sistema actual: aplica 30% directo → 70€
-  6. Pérdida: 2€ por producto
-
----
-
-## Casos específicos reportados
-
-- Black Friday: 20% + 10% cupón → descuento excesivo
-- Productos en oferta + código de bienvenida
-- Descuento por cantidad + promoción de categoría
-- Miembros premium + cupón de temporada
+  1. Usuario cambia cantidad de 2 a 5
+  2. Click rápido genera múltiples requests
+  3. Backend procesa ambos
+  4. Cantidad final incorrecta: 10 en lugar de 5
+  5. Total calculado mal
+  6. Usuario debe recargar página
 
 ---
 
 ## Impacto
 
-- Pérdida económica: 12.000€ este mes
-- Margen de productos comprometido
-- Marketing no puede planificar campañas
-- Riesgo de abuso por usuarios informados
-- Clientes esperan descuentos incorrectos en futuro
+- Errores en pedidos: usuarios reciben cantidades incorrectas
+- Abandono por falta de confianza: +12%
+- Tickets de soporte innecesarios
+- Reputación del sistema afectada
 
 ---
 
 ## Solución propuesta
 
-- Refactorizar lógica de cálculo de descuentos
-- Aplicar descuentos en orden de prioridad correcto
-- Calcular descuento compuesto correctamente
-- Validar descuento total máximo
-- Logs detallados de cada aplicación
+- Validación estricta de cantidades en backend
+- Debouncing en frontend
+- Endpoint dedicado: PATCH /v1/carts/{cartId}/items/{itemId}
+- Validar límites: mínimo 1, máximo según stock
+- Response con cantidad actualizada y total recalculado
+- Optimistic UI con rollback si falla
 
 ---
 
 ## Cambios técnicos necesarios
 
-- Modificar Promotion Engine:
-  - Ordenar promociones por prioridad
-  - Aplicar descuentos secuencialmente sobre precio actualizado
-  - Fórmula correcta: precio_final = precio * (1 - d1) * (1 - d2)
-  - Validar descuento total < 80%
-- Nueva estructura de cálculo:
-  - promotions: [{ type, value, priority, appliedPrice }]
-  - originalPrice: number
-  - finalPrice: number
-  - totalDiscount: percentage
-- Endpoint de validación:
-  - POST /v1/promotions/calculate-preview
-  - Response: desglose completo de descuentos aplicados
+- Modificar Cart Service:
+  - Validar quantity > 0 y quantity <= stock disponible
+  - Rechazar si supera límite
+  - Recalcular total automáticamente
+  - Response: { itemId, newQuantity, subtotal, cartTotal }
+- Frontend:
+  - Debounce de 500ms en cambios de cantidad
+  - Deshabilitar input durante update
+  - Mostrar loading state
+  - Rollback a cantidad anterior si error
+- Validaciones:
+  - Mínimo: 1
+  - Máximo: stock disponible (consultar a Catalog)
+  - Tipo: integer positivo
 
 ---
 
 ## Flujo propuesto
 
-1. Usuario tiene promociones aplicables
-2. Sistema ordena por prioridad
-3. Aplica descuento 1 sobre precio original
-4. Aplica descuento 2 sobre precio resultante
-5. Aplica descuento N sobre precio N-1
-6. Valida descuento total < máximo permitido
-7. Guarda log de cada paso
-8. Devuelve desglose detallado al frontend
+1. Usuario modifica cantidad en input
+2. Frontend espera 500ms (debounce)
+3. Envía PATCH /v1/carts/{cartId}/items/{itemId}
+4. Backend valida cantidad
+5. Si válida: actualiza y recalcula total
+6. Si inválida: devuelve 422 con límites
+7. Frontend actualiza UI con cantidad y total
+8. Usuario ve cambio inmediato y correcto
 
 ---
 
 ## Consideraciones
 
-- Prioridad: automática > manual > cupón
-- Descuento máximo global: 80%
-- Audit log completo de cálculos
-- Dashboard para marketing revisar casos
-- Alertas si descuento > 70%
+- Sincronización con stock en tiempo real
+- Mensajes de error claros: "Stock disponible: 3 unidades"
+- Logging de errores de validación
+- Monitoreo de requests duplicados

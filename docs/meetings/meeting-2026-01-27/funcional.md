@@ -1,57 +1,65 @@
-# Documento funcional – Corrección cálculo de descuentos combinados (2026-01-27)
+# Documento Funcional – Actualización de cantidades en carrito (2026-01-27)
 
 ## Descripción General
 
-Corrección del cálculo de descuentos combinados en el sistema de promociones. Actualmente, la aplicación secuencial y sin prioridad de los descuentos genera pérdidas económicas y descuentos mayores a los previstos. Se busca refactorizar la lógica para aplicar correctamente los descuentos compuestos, establecer un orden de prioridad y validar un descuento máximo permitido.
+Se aborda la problemática reportada por usuarios al modificar las cantidades de productos en el carrito, donde se presentan errores de actualización, duplicados por clicks rápidos, aceptación de cantidades negativas y totales incorrectos. El objetivo es robustecer la validación y sincronización de cantidades, mejorando la experiencia y confianza del usuario.
 
 ---
 
 ## Lógica Funcional
 
-- Refactorizar la lógica de cálculo de descuentos para aplicar descuentos combinados correctamente.
-- Ordenar las promociones por prioridad antes de su aplicación.
-- Aplicar cada descuento sobre el precio resultante del descuento anterior.
-- Utilizar la fórmula: `precio_final = precio * (1 - d1) * (1 - d2) ...`
-- Validar que el descuento total no supere el 80%.
-- Registrar logs detallados de cada aplicación de descuento.
-- Proveer un desglose completo de los descuentos aplicados.
-- Prioridad de aplicación: automática > manual > cupón.
-- Alertar si el descuento supera el 70%.
-- Dashboard para marketing para revisar casos.
-- Audit log completo de los cálculos.
+- Validación estricta de cantidades tanto en frontend como en backend.
+- Implementación de debouncing para evitar múltiples requests simultáneos.
+- El backend debe validar que la cantidad sea mayor o igual a 1 y no supere el stock disponible.
+- El frontend debe mostrar el estado de carga y realizar rollback si ocurre un error.
+- El endpoint PATCH /v1/carts/{cartId}/items/{itemId} será el encargado de actualizar cantidades.
+- La respuesta del backend debe incluir la cantidad actualizada y el total recalculado.
+- Mensajes de error claros en caso de límites superados.
+- Sincronización en tiempo real con el stock disponible.
+- Logging y monitoreo de errores y requests duplicados.
+
+---
+
+## Lógica Frontend
+
+- Implementar debounce de 500ms al modificar la cantidad de un producto en el carrito.
+- Deshabilitar el input de cantidad durante la actualización.
+- Mostrar un estado de carga mientras se procesa la petición.
+- Realizar rollback a la cantidad anterior si ocurre un error.
+- Consumir el endpoint PATCH /v1/carts/{cartId}/items/{itemId}.
+- Actualizar la UI con la cantidad y el total recibidos en la respuesta.
+- Mostrar mensajes de error claros, por ejemplo: "Stock disponible: 3 unidades".
 
 ---
 
 ## Lógica Backend
 
-- Modificar el Promotion Engine para:
-  - Ordenar promociones por prioridad.
-  - Aplicar descuentos secuencialmente sobre el precio actualizado.
-  - Implementar la fórmula correcta para descuentos compuestos.
-  - Validar que el descuento total sea menor al 80%.
-  - Estructura de cálculo:
-    - `promotions: [{ type, value, priority, appliedPrice }]`
-    - `originalPrice: number`
-    - `finalPrice: number`
-    - `totalDiscount: percentage`
-- Implementar logs detallados de cada paso del cálculo.
-- Generar alertas si el descuento supera el 70%.
-- Endpoint de validación:
-  - `POST /v1/promotions/calculate-preview`
-  - La respuesta debe incluir el desglose completo de descuentos aplicados.
+- Modificar el servicio de carrito para:
+  - Validar que la cantidad sea mayor o igual a 1 y menor o igual al stock disponible.
+  - Rechazar la petición si se supera el límite permitido.
+  - Recalcular el total del carrito automáticamente tras la actualización.
+  - Responder con un objeto que incluya: itemId, newQuantity, subtotal, cartTotal.
+- Devolver error 422 con los límites permitidos si la validación falla.
+- Consultar el stock disponible al validar la cantidad.
+- Registrar logs de errores de validación y monitorear requests duplicados.
 
 ---
 
 ## Nuevos servicios
 
-- Endpoint de validación de promociones:
-  - **URL:** `/v1/promotions/calculate-preview`
-  - **Método:** POST
-  - **Request:** Información de promociones aplicables y precio original.
-  - **Response:** Desglose completo de descuentos aplicados, precio final, totalDiscount.
+- Endpoint dedicado para actualización de cantidades:
+  - PATCH /v1/carts/{cartId}/items/{itemId}
+  - Request: cantidad deseada
+  - Response: { itemId, newQuantity, subtotal, cartTotal }
+  - Error 422: incluir límites permitidos y mensaje descriptivo
 
 ---
 
-## Partes Afectadas
+## Consideraciones
 
-*(No hay información explícita sobre sites afectados, dependencias con terceros, analítica, contingencias, tipo de usuario, método de envío, tipo de mercancía ni ventanas de flujo afectadas en el transcript, por lo que estas secciones se eliminan.)*
+- Sincronización con stock en tiempo real.
+- Mensajes de error claros para el usuario.
+- Logging de errores de validación.
+- Monitoreo de requests duplicados.
+
+---

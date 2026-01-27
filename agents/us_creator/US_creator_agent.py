@@ -5,8 +5,16 @@ TEMPLATE_FILE = "plantilla_funcional.md"
 
 ALL_MEETINGS_PATH = "../../docs/meetings"
 
+def load_env_manual(path="../../.env"):
+    with open(path) as f:
+        for line in f:
+            if line.strip() and not line.startswith("#"):
+                key, value = line.strip().split("=", 1)
+                os.environ[key] = value
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL"))
+load_env_manual()
+
+client = OpenAI()  # usa OPENAI_API_KEY del entorno
 
 SYSTEM_PROMPT = """
 Eres un agente de documentación funcional.
