@@ -89,7 +89,7 @@ def render_md(md_text: str) -> str:
 
 def search_user_story(story_id: str) -> dict:
     for file in BACKLOG_PATH.rglob("*"):
-        if file.is_file() and story_id in file.name:
+        if file.is_file() and story_id.lower() in file.name.lower():
             html = render_md(file.read_text(encoding="utf-8"))
 
             return {
@@ -135,11 +135,11 @@ def upload_md(file: UploadFile = File(...)):
         # Guardamos la ruta actual
         cwd = os.getcwd()
         os.chdir("agents/us_creator")
-        result = os.system("python3 US_creator_agent_individual.py "+folder_name)
+        result = os.system("python3 US_creator_agent.py "+folder_name)
         os.chdir(cwd)
 
         if result != 0:
-            raise Exception("Error ejecutando US_creator_agent_individual.py")
+            raise Exception("Error ejecutando US_creator_agent.py")
     except Exception as e:
         return {"message": f"❌ Hubo un problema ejecutando el agente: {e}"}
 
@@ -155,7 +155,7 @@ def chat(msg: Message):
         chat_state["current_meeting_date"] = None
         return {
             "response": "🔄 Estás de vuelta en el menú principal",
-            "show_options": False,
+            "show_options": True,
             "enable_upload": False
         }
 

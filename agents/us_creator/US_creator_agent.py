@@ -1,5 +1,7 @@
-import os, re
+import os, re, sys
 from openai import OpenAI
+
+myMeeting = sys.argv[1] if len(sys.argv) > 1 else None
 
 TEMPLATE_FILE = "plantilla_funcional.md"
 
@@ -73,7 +75,7 @@ Genera el documento funcional final en Markdown.
     )
     return response.choices[0].message.content
 
-BACKLOG_PATH = "../../docs/backlog"
+BACKLOG_PATH = "../../docs/backlog/to-do"
 
 PATHS_TO_SCAN = ["../../docs/releases", "../../docs/backlog"]
 
@@ -174,50 +176,59 @@ def slugify(text):
 def generate_link(output_file):
     LINK_FUNCIONAL = f"""
 
-    ---
+---
 
-    ## Referencias
+## Referencias
 
-    - Documento funcional: [`funcional.md`]({output_file})
-    """
+- Documento funcional: [`funcional.md`]({output_file})
+"""
     return LINK_FUNCIONAL
+
+def process_meeting(meeting_path):
+    print(f"\nProcesando transcript de reunión en {meeting_path}")
+
+    files = os.listdir(meeting_path)
+
+    if "funcional.md" in files:
+        print("Documento funcional y user story ya existen, saltando generación.")
+        return
+
+    TRANSCRIPT_FILE = os.path.join(meeting_path, "transcript.md")
+    OUTPUT_FILE = os.path.join(meeting_path, "funcional.md")
+
+    print("\nGenerando documento funcional...")
+    transcript = read_file(TRANSCRIPT_FILE)
+    template = read_file(TEMPLATE_FILE)
+    funcional_doc = generate_functional_doc(transcript, template)
+    write_file(OUTPUT_FILE, funcional_doc)
+    print(f"Documento funcional generado en {OUTPUT_FILE}")
+
+    print("\nGenerando User Story...")
+    US_ID = next_us_id()
+    user_story_md = generate_user_story(funcional_doc, US_ID)
+
+    title = extract_us_title(user_story_md)
+    slug = slugify(title)
+
+    us_filename = f"US-{US_ID}_{slug}.md"
+    us_path = os.path.join(BACKLOG_PATH, us_filename)
+
+    write_file(us_path, user_story_md)
+    append_file(us_path, generate_link(OUTPUT_FILE))
+
+    print(f"User Story generada en {us_path}")
+    print("\n" + "-" * 50)
 
     
 def main():
-    for root, dirs, _ in os.walk(ALL_MEETINGS_PATH):
-        for dir in dirs:
-            MEETINGS_PATH = os.path.join(root, dir)
-            print(f"\nProcesando transcript de reunión en {MEETINGS_PATH}")
-            
-            files = os.listdir(MEETINGS_PATH)
-            
-            if "funcional.md" not in files:
-                TRANSCRIPT_FILE = os.path.join(MEETINGS_PATH, "transcript.md")
-                OUTPUT_FILE = os.path.join(MEETINGS_PATH, "funcional.md")
-
-                print("\nGenerando documento funcional...")
-                transcript = read_file(TRANSCRIPT_FILE)
-                template = read_file(TEMPLATE_FILE)
-                funcional_doc = generate_functional_doc(transcript, template)
-                write_file(OUTPUT_FILE, funcional_doc)
-                print(f"Documento funcional generado en {OUTPUT_FILE}")
-
-                print("\nGenerando User Story...")
-                user_story_md = generate_user_story(funcional_doc, next_us_id())
-
-                title = extract_us_title(user_story_md)
-                slug = slugify(title)
-
-                US_ID = next_us_id()
-                us_filename = f"US-{US_ID}_{slug}.md"
-                us_path = os.path.join(BACKLOG_PATH, us_filename)
-
-                write_file(us_path, user_story_md)
-                append_file(us_path, generate_link(OUTPUT_FILE))
-
-                print(f"User Story generada en {us_path}")
-            else:
-                print("Documento funcional y user story ya existen, saltando generación.")
+    if myMeeting is None:
+        for root, dirs, _ in os.walk(ALL_MEETINGS_PATH):
+            for dir in dirs:
+                meeting_path = os.path.join(root, dir)
+                process_meeting(meeting_path)
+    else:
+        meeting_path = os.path.join(ALL_MEETINGS_PATH, myMeeting)
+        process_meeting(meeting_path)
             
 
 if __name__ == "__main__":

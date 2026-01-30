@@ -65,14 +65,15 @@ async function send() {
 
     const data = await res.json();
 
+    if (data.response_html) {
+      addMessageHTML(data.response_html, "system");
+    }
+    if (data.response) {
+      addMessage(data.response, "system");
+    }
     // Mostrar las opciones si el backend lo indica
     if (data.show_options) {
       addMessageHTML(`📝 Mostrando opciones ${chatOptionsHTML}`, "system");
-    } else if (data.response_html) {
-      addMessageHTML(data.response_html, "system");
-    }
-    else if (data.response) {
-      addMessage(data.response, "system");
     }
 
     // 🔑 Habilitar upload si backend lo indica
