@@ -643,14 +643,20 @@ def apply_changes_node(state: AgentState) -> AgentState:
     Nodo 5: APPLIER
     Aplica los cambios a los archivos si fueron aceptados
     """
-    # Solicitar justificación de la aceptación
-    console.print("\n[dim]Para trazabilidad, indica el motivo de la aceptación:[/dim]")
-    console.print("[dim](Ejemplos: 'Cambios necesarios y bien fundamentados', 'Mejora la documentación', 'Alineado con US', etc.)[/dim]\n")
-    
-    acceptance_reason = Prompt.ask(
-        "Motivo de la aceptación",
-        default="Cambios aprobados"
-    )
+    # Justificación de la aceptación (si viene en state, usarla; si está en modo no-interactivo, usar motivo por defecto)
+    if state.get("auto_mode") and state.get("auto_reason"):
+        acceptance_reason = state.get("auto_reason")
+        console.print(f"\n[cyan]Motivo:[/cyan] {acceptance_reason}\n")
+    elif state.get("auto_mode"):
+        acceptance_reason = "Cambios aceptados desde chat"
+        console.print(f"\n[cyan]Motivo:[/cyan] {acceptance_reason}\n")
+    else:
+        console.print("\n[dim]Para trazabilidad, indica el motivo de la aceptación:[/dim]")
+        console.print("[dim](Ejemplos: 'Cambios necesarios y bien fundamentados', 'Mejora la documentación', 'Alineado con US', etc.)[/dim]\n")
+        acceptance_reason = Prompt.ask(
+            "Motivo de la aceptación",
+            default="Cambios aprobados"
+        )
     
     console.print("\n[bold cyan]⚙️  APPLIER:[/bold cyan] Aplicando cambios...")
     
@@ -765,14 +771,18 @@ def reject_node(state: AgentState) -> AgentState:
     """
     console.print("\n[bold yellow]❌ Cambios rechazados. No se modificó ningún archivo.[/bold yellow]\n")
     
-    # Solicitar motivo del rechazo
-    console.print("[dim]Para trazabilidad, indica el motivo del rechazo:[/dim]")
-    console.print("[dim](Ejemplos: 'Cambios demasiado agresivos', 'Falta contexto', 'Enfoque incorrecto', etc.)[/dim]\n")
-    
-    reason = Prompt.ask(
-        "Motivo del rechazo",
-        default="No especificado"
-    )
+    # Motivo del rechazo (si viene en state, usarlo; si está en modo no-interactivo, usar motivo por defecto)
+    if state.get("auto_mode") and state.get("auto_reason"):
+        reason = state.get("auto_reason")
+    elif state.get("auto_mode"):
+        reason = "Rechazado desde chat"
+    else:
+        console.print("[dim]Para trazabilidad, indica el motivo del rechazo:[/dim]")
+        console.print("[dim](Ejemplos: 'Cambios demasiado agresivos', 'Falta contexto', 'Enfoque incorrecto', etc.)[/dim]\n")
+        reason = Prompt.ask(
+            "Motivo del rechazo",
+            default="No especificado"
+        )
     
     # Registrar rechazo
     us_id = state["analysis"].get("us_id", "US-XXX")
@@ -951,9 +961,109 @@ def main():
                     default="si"
                 )
                 if continuar.lower() == "no":
-                    break
+                        break
+                else:
+                    raise
+
+
+def run_noninteractive(us_pattern: str = None, preview: bool = False, decision: str = None, auto_reason: str = None):
+    """
+    Run a single US non-interactively.
+    - preview=True: only generate proposals and print JSON summary
+    - decision in {"accept","reject"}: apply or reject changes using agent logic
+    """
+    # Buscar US files
+    done_files = list(BACKLOG_DONE_PATH.glob("*.md"))
+    if us_pattern:
+        done_files = [f for f in done_files if us_pattern.lower() in f.name.lower()]
+
+    if not done_files:
+        output = {"status": "no_us", "message": "No hay User Stories completadas en /backlog/done/"}
+        print(json.dumps(output, ensure_ascii=False))
+        return 0
+
+    # Procesar la primera US encontrada
+    us_file = str(done_files[0])
+    us_content = read_file(us_file)
+
+    state: AgentState = {
+        "us_file": us_file,
+        "us_content": us_content,
+        "analysis": {},
+        "affected_docs": [],
+        "proposals": [],
+        "human_decision": "pending",
+        "applied": False
+    }
+
+    # Ejecutar pasos de análisis/propuesta
+    try:
+        state = analyze_node(state)
+        state = find_affected_docs_node(state)
+        state = propose_changes_node(state)
+    except Exception as e:
+        print(json.dumps({"status": "error", "message": f"Error durante generación de propuestas: {str(e)}"}, ensure_ascii=False))
+        return 2
+
+    # Si solo preview, imprimir resumen JSON y salir
+    if preview and decision is None:
+        proposals_summary = []
+        for p in state.get("proposals", []):
+            proposals_summary.append({
+                "file": Path(p.get("file")).name,
+                "changes_count": len(p.get("proposal", {}).get("changes", [])),
+                "sections": [c.get("section") for c in p.get("proposal", {}).get("changes", [])]
+            })
+
+        out = {
+            "status": "ok",
+            "us_file": Path(us_file).name,
+            "us_id": state.get("analysis", {}).get("us_id"),
+            "title": state.get("analysis", {}).get("title"),
+            "proposals": proposals_summary
+        }
+        print(json.dumps(out, ensure_ascii=False))
+        return 0
+
+    # Si se pasó una decisión, aplicar o rechazar
+    if decision in ("accept", "reject"):
+        state["auto_mode"] = True
+        if auto_reason:
+            state["auto_reason"] = auto_reason
+
+        try:
+            if decision == "accept":
+                state = apply_changes_node(state)
+                print(json.dumps({"status": "applied", "us_file": Path(us_file).name}, ensure_ascii=False))
+                return 0
             else:
-                raise
+                state = reject_node(state)
+                print(json.dumps({"status": "rejected", "us_file": Path(us_file).name}, ensure_ascii=False))
+                return 0
+        except Exception as e:
+            print(json.dumps({"status": "error", "message": f"Error aplicando cambios: {str(e)}"}, ensure_ascii=False))
+            return 2
+
+    # Si no preview ni decisión, fallback a interactivo main
+    return None
+
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Doc Update Agent CLI")
+    parser.add_argument("--preview", action="store_true", help="Genera propuestas y las imprime en JSON (modo no interactivo)")
+    parser.add_argument("--decision", choices=["accept", "reject"], help="Aplica o rechaza cambios en una US (modo no interactivo)")
+    parser.add_argument("--us", type=str, default=None, help="Patrón para filtrar qué US procesar (ej: US-108)")
+    parser.add_argument("--reason", type=str, default=None, help="Motivo para aceptación/rechazo cuando se usa --decision")
+
+    args = parser.parse_args()
+
+    # Si se solicitó preview o decision, intentar flujo no interactivo
+    if args.preview or args.decision:
+        rc = run_noninteractive(us_pattern=args.us, preview=args.preview, decision=args.decision, auto_reason=args.reason)
+        if rc is not None:
+            raise SystemExit(rc)
+
+    # Fallback al modo interactivo completo
     main()

@@ -64,6 +64,36 @@
           ]
         }
       ]
+    },
+    {
+      "timestamp": "2026-01-30T13:03:38.276603",
+      "date": "2026-01-30 13:03:38",
+      "us_id": "US-108",
+      "us_title": "Persist cart by userId",
+      "us_file": "US-108_persist_cart_by_userid.md",
+      "affected_documents": [
+        "20_cart_service.md",
+        "00_overview_cart_checkout.md"
+      ],
+      "proposed_changes_count": 3,
+      "reason": "Rechazado desde chat",
+      "proposals_summary": [
+        {
+          "document": "20_cart_service.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "Responsabilidad y límites",
+            "Endpoints"
+          ]
+        },
+        {
+          "document": "00_overview_cart_checkout.md",
+          "changes_count": 1,
+          "sections_affected": [
+            "2. Alcance del sistema"
+          ]
+        }
+      ]
     }
   ]
 }
