@@ -8,16 +8,16 @@ Este documento ofrece una **visión general** del sistema **Cart & Checkout** de
 ## 2. Alcance del sistema
 El sistema Cart & Checkout cubre el ciclo completo desde la **ingesta de datos comerciales** (catálogo, precios y promociones) hasta la **creación del pedido pendiente de pago**, incluyendo:
 
-- Gestión del carrito y sesión de compra
-- Cálculo de precios y aplicación de promociones
+- Gestión del carrito y sesión de compra, incluyendo validación de precios en tiempo real al añadir productos al carrito, **validación estricta de cantidades al actualizar ítems existentes**, debouncing para evitar requests simultáneos, deshabilitación de inputs durante la actualización, rollback en caso de error, recalculo automático de subtotales y descuentos, y validación de direcciones de envío durante el checkout.
+- Cálculo de precios y aplicación de promociones, incluyendo la aplicación secuencial de descuentos combinados con validación de límites y generación de alertas.
 - Disponibilidad y coste de entrega en sesión
 - Orquestación del checkout
 - Gestión del estado del pago
 - Seguimiento del envío
+- Gestión de stock en tiempo real durante el checkout
 
 **Fuera de alcance** (explícito):
 - Pasarela de pago real (PSP)
-- Gestión de stock en tiempo real (se asume validación “soft”)
 - Facturación y postventa
 - Infraestructura (CI/CD, cloud, redes)
 
@@ -52,9 +52,16 @@ El sistema está pensado para un retailer omnicanal con:
 
 2. **Transaccionales (sync)**
    - Exponen APIs REST
+   - Validan precios en tiempo real al añadir productos al carrito mediante integración con Pricing Service
    - Son llamados por la web/app de compras
    - Operan en contexto de sesión
    - Orquestan cálculos y validaciones
+
+### 4.2 Integración de servicios externos
+- **Validación de direcciones**: Integración con un servicio externo para la validación y normalización de direcciones durante el checkout, asegurando la precisión de los datos de envío.
+
+### 4.3 Endpoints de microservicios
+- **POST** `/v1/promotions/calculate-preview`: Permite validar y obtener un desglose de descuentos antes de aplicar la promoción.
 
 ---
 
@@ -186,7 +193,6 @@ Los contratos completos se describen en `03_eventos_y_colas.md`.
 ---
 
 ## 11. Lecturas relacionadas
-## 11. Lecturas relacionadas
 
 ### Documentación base
 - Glosario y convenciones: [`01_glosario_y_convenciones.md`](01_glosario_y_convenciones.md)
@@ -206,4 +212,3 @@ Los contratos completos se describen en `03_eventos_y_colas.md`.
 - Checkout Service: [`30_checkout_service.md`](30_checkout_service.md)
 - Payment Status Service: [`31_payment_status_service.md`](31_payment_status_service.md)
 - Tracking Service: [`32_tracking_service.md`](32_tracking_service.md)
-

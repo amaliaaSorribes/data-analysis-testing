@@ -1,7 +1,7 @@
 # Cart Service
 
 ## Responsabilidad y límites
-El **Cart Service** es el **owner del carrito y de la sesión de compra**. Gestiona el ciclo de vida del carrito, los ítems que contiene y los cálculos “en sesión” necesarios para mostrar totales al usuario antes del checkout.
+El **Cart Service** es el **owner del carrito y de la sesión de compra**. Gestiona el ciclo de vida del carrito, los ítems que contiene y los cálculos “en sesión” necesarios para mostrar totales al usuario antes del checkout. Ahora también valida el precio actual de los productos al añadirlos al carrito, consultando el Pricing Service. Además, integra la validación de direcciones de envío durante el proceso de checkout mediante un servicio externo. Con el rediseño de la interfaz, el servicio también soporta la visualización de precios originales y con descuento, actualiza el subtotal en tiempo real, gestiona la opción de 'guardar para después', y proporciona sugerencias de productos relacionados. Con la implementación de la US-117, el servicio ahora incluye validación estricta de cantidades, debouncing para evitar requests simultáneos, y recalculo automático del total del carrito tras cada actualización.
 
 Este servicio es responsable de:
 - Crear y mantener carritos activos
@@ -35,6 +35,9 @@ La colección `carts` almacena el estado del carrito durante la sesión de compr
 - `total`
 - `status`
 - `expiresAt`
+- `originalPrice`
+- `savedForLater`
+- `relatedProductSuggestions`
 
 El esquema detallado se describe en `02_modelo_datos_mongo.md`.
 
@@ -72,7 +75,7 @@ Devuelve el estado actual del carrito.
 
 ### POST `/v1/carts/{cartId}/items` — Añadir producto
 
-Añade un producto al carrito o incrementa su cantidad si ya existe.
+Añade un producto al carrito o incrementa su cantidad si ya existe. Antes de completar la operación, valida el precio actual del producto con el Pricing Service.
 
 **Request**
 ```json
@@ -82,7 +85,7 @@ Añade un producto al carrito o incrementa su cantidad si ya existe.
 }
 ```
 
-**Reponse (200)**
+**Response (200)**
 ```json
 {
   "cartId": "UUID",
@@ -90,11 +93,16 @@ Añade un producto al carrito o incrementa su cantidad si ya existe.
   "items": [
     {
       "sku": "SKU-12345",
-      "quantity": 1
+      "quantity": 1,
+      "priceChanged": false,
+      "oldPrice": null,
+      "newPrice": null
     }
   ]
 }
 ```
+
+Si el precio ha cambiado, el campo `priceChanged` será `true` y se incluirán los campos `oldPrice` y `newPrice`.
 
 ---
 
@@ -166,6 +174,92 @@ Bloquea el carrito antes de iniciar el proceso de pago (freeze before payment).
 {
   "cartId": "UUID",
   "status": "LOCKED"
+}
+```
+
+---
+
+### PUT `/v1/carts/{cartId}/items/{productId}` — Actualizar cantidad de producto
+
+Permite actualizar la cantidad de un ítem existente en el carrito. La cantidad debe ser mayor a cero. El subtotal y los descuentos se recalculan automáticamente.
+
+**Request**
+```json
+{
+  "quantity": 2
+}
+```
+
+**Response (200)**
+```json
+{
+  "cartId": "UUID",
+  "status": "ACTIVE",
+  "items": [
+    {
+      "sku": "SKU-12345",
+      "quantity": 2,
+      "subtotal": 40.00,
+      "discounts": 5.00,
+      "total": 35.00
+    }
+  ],
+  "currency": "EUR"
+}
+```
+
+---
+
+### POST `/v1/addresses/validate` — Validar dirección
+Valida y normaliza direcciones de envío durante el checkout.
+
+**Request**
+```json
+{
+  "street": "string",
+  "number": "string",
+  "city": "string",
+  "postalCode": "string",
+  "province": "string"
+}
+```
+
+**Response**
+```json
+{
+  "valid": true,
+  "suggestions": [],
+  "normalized": {}
+}
+```
+
+---
+
+### PATCH `/v1/carts/{cartId}/items/{itemId}` — Actualizar cantidad de un ítem
+Actualiza la cantidad de un ítem en el carrito con validación de límites y recalculo del total del carrito.
+
+**Request**
+```json
+{
+  "quantity": "number"
+}
+```
+
+**Response (200)**
+```json
+{
+  "itemId": "UUID",
+  "newQuantity": "number",
+  "subtotal": "number",
+  "cartTotal": "number"
+}
+```
+
+**Error (422)**
+```json
+{
+  "error": "string",
+  "allowedLimits": "string"
 }
 ```
 

@@ -1,0 +1,121 @@
+{
+  "metadata": {
+    "description": "Registro histórico de propuestas de cambios aceptadas y aplicadas",
+    "purpose": "Trazabilidad de decisiones y base para generar objetivos de release"
+  },
+  "accepted": [
+    {
+      "timestamp": "2026-01-27T16:37:37.253257",
+      "date": "2026-01-27 16:37:37",
+      "us_id": "US-115",
+      "us_title": "Address validation in checkout",
+      "us_file": "US-115_address_validation_in_checkout.md",
+      "affected_documents": [
+        "20_cart_service.md",
+        "00_overview_cart_checkout.md"
+      ],
+      "applied_changes_count": 4,
+      "reason": "Quiero probar",
+      "release": "1.4",
+      "release_date": "2026-01-27",
+      "proposals_summary": [
+        {
+          "document": "20_cart_service.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "Responsabilidad y límites",
+            "Endpoints"
+          ]
+        },
+        {
+          "document": "00_overview_cart_checkout.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "2. Alcance del sistema",
+            "4. Arquitectura a alto nivel"
+          ]
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-01-27T16:59:22.071127",
+      "date": "2026-01-27 16:59:22",
+      "us_id": "US-116",
+      "us_title": "Cart Interface Redesign",
+      "us_file": "US-116_cart_interface_redesign.md",
+      "affected_documents": [
+        "20_cart_service.md"
+      ],
+      "applied_changes_count": 2,
+      "reason": "Prueba índice",
+      "release": "1.4",
+      "release_date": "2026-01-27",
+      "proposals_summary": [
+        {
+          "document": "20_cart_service.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "Responsabilidad y límites",
+            "Modelo de datos (carts)"
+          ]
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-01-27T17:05:15.732768",
+      "date": "2026-01-27 17:05:15",
+      "us_id": "US-116",
+      "us_title": "Cart Interface Redesign",
+      "us_file": "US-116_cart_interface_redesign.md",
+      "affected_documents": [
+        "20_cart_service.md"
+      ],
+      "applied_changes_count": 2,
+      "reason": "prueba resumen cambios",
+      "release": "1.4",
+      "release_date": "2026-01-27",
+      "proposals_summary": [
+        {
+          "document": "20_cart_service.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "Responsabilidad y límites",
+            "Modelo de datos (carts)"
+          ]
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-01-27T17:11:57.562964",
+      "date": "2026-01-27 17:11:57",
+      "us_id": "US-117",
+      "us_title": "Cart item quantity update validation",
+      "us_file": "US-117_cart_item_quantity_update_validation.md",
+      "affected_documents": [
+        "20_cart_service.md",
+        "00_overview_cart_checkout.md"
+      ],
+      "applied_changes_count": 3,
+      "reason": "prueba otra vez",
+      "release": "1.4",
+      "release_date": "2026-01-27",
+      "proposals_summary": [
+        {
+          "document": "20_cart_service.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "Responsabilidad y límites",
+            "Endpoints"
+          ]
+        },
+        {
+          "document": "00_overview_cart_checkout.md",
+          "changes_count": 1,
+          "sections_affected": [
+            "2. Alcance del sistema"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "metadata": {
+    "description": "Registro histórico de propuestas de cambios rechazadas",
+    "purpose": "Trazabilidad de decisiones para evitar re-proponer cambios ya rechazados"
+  },
+  "rejections": [
+    {
+      "timestamp": "2026-01-27T16:46:38.179132",
+      "date": "2026-01-27 16:46:38",
+      "us_id": "US-108",
+      "us_title": "Persist cart by userId",
+      "us_file": "US-108_persist_cart_by_userid.md",
+      "affected_documents": [
+        "20_cart_service.md",
+        "00_overview_cart_checkout.md"
+      ],
+      "proposed_changes_count": 3,
+      "reason": "prueba de nueva ruta",
+      "proposals_summary": [
+        {
+          "document": "20_cart_service.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "Responsabilidad y límites",
+            "Endpoints"
+          ]
+        },
+        {
+          "document": "00_overview_cart_checkout.md",
+          "changes_count": 1,
+          "sections_affected": [
+            "2. Alcance del sistema"
+          ]
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-01-27T16:47:29.706462",
+      "date": "2026-01-27 16:47:29",
+      "us_id": "US-108",
+      "us_title": "Persist cart by userId",
+      "us_file": "US-108_persist_cart_by_userid.md",
+      "affected_documents": [
+        "20_cart_service.md",
+        "00_overview_cart_checkout.md"
+      ],
+      "proposed_changes_count": 4,
+      "reason": "Prueba nueva ruta_2",
+      "proposals_summary": [
+        {
+          "document": "20_cart_service.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "Responsabilidad y límites",
+            "Endpoints"
+          ]
+        },
+        {
+          "document": "00_overview_cart_checkout.md",
+          "changes_count": 2,
+          "sections_affected": [
+            "2. Alcance del sistema",
+            "4. Arquitectura a alto nivel"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -319,3 +319,75 @@ Soportar el patrón **outbox** para publicación fiable de eventos.
 
 * `{ eventId: 1 }`
 * `{ published: 1 }`
+
+---
+
+## stock_validations
+
+**Owner**: cart-service  
+**Dominio**: Validaciones de Stock
+
+### Propósito
+Registrar las validaciones de stock realizadas durante el proceso de checkout para auditoría y análisis.
+
+### Esquema JSON orientativo
+```json
+{
+  "_id": "ObjectId",
+  "sku": "SKU-12345",
+  "quantity": 2,
+  "available": true,
+  "currentStock": 5,
+  "validatedAt": "2026-01-26T15:00:00Z"
+}
+```
+
+### Campos clave
+
+* `sku`
+* `validatedAt`
+
+### Índices
+
+* `{ sku: 1, validatedAt: 1 }`
+
+### Consideraciones
+
+* TTL de 7 días para los documentos en esta colección.
+
+---
+
+## price_validations
+
+**Owner:** Cart Service
+**Dominio:** Validaciones de Precios
+
+### Propósito
+
+Registrar todas las validaciones de precio realizadas al añadir productos al carrito, incluyendo cambios de precio detectados.
+
+### Esquema JSON orientativo
+
+```json
+{
+  "_id": "ObjectId",
+  "sku": "SKU-12345",
+  "oldPrice": 19.99,
+  "newPrice": 21.99,
+  "priceChanged": true,
+  "timestamp": "2026-01-26T15:00:00Z"
+}
+```
+
+### Campos clave
+
+* `sku`
+* `priceChanged`
+
+### Índices
+
+* `{ sku: 1, timestamp: -1 }`
+
+### Consideraciones
+
+* TTL de 30 días para los documentos en esta colección.
