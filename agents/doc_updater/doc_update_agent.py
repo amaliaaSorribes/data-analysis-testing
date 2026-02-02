@@ -38,7 +38,22 @@ def load_env_manual(path="../../.env"):
 
 load_env_manual()
 
-client = OpenAI()  # usa OPENAI_API_KEY del entorno
+# Configuración del cliente según el proveedor
+PROVIDER = os.environ.get("AI_PROVIDER", "openai").lower()  # "openai" o "github"
+
+if PROVIDER == "github":
+    # Usar GitHub Models
+    client = OpenAI(
+        base_url="https://models.inference.ai.azure.com",
+        api_key=os.environ.get("GITHUB_TOKEN")
+    )
+    DEFAULT_MODEL = "gpt-4o"  # Modelo disponible en GitHub
+else:
+    # Usar OpenAI
+    client = OpenAI(
+        api_key=os.environ.get("OPENAI_API_KEY")
+    )
+    DEFAULT_MODEL = "gpt-4o-mini"  # Modelo de OpenAI
 
 console = Console()
 
@@ -63,6 +78,7 @@ class AgentState(TypedDict):
     proposals: list[dict]           # Propuestas de cambio con diffs
     human_decision: Literal["accept", "reject"]  # Decisión del usuario
     applied: bool                   # Si se aplicaron los cambios
+    acceptance_reason: str          # Motivo de la aceptación
 
 # ============================================================================
 # FUNCIONES HELPER
@@ -280,6 +296,68 @@ def register_acceptance(us_file: str, us_id: str, us_title: str, affected_docs: 
     
     return str(ACCEPTED_LOG)
 
+def generate_release_objective(release_dir: Path, version: str, date_str: str) -> str:
+    """Genera un objetivo conciso del release basado en las US incluidas"""
+    # Leer todas las US del release
+    us_files = list(release_dir.glob("US-*.md"))
+    
+    if not us_files:
+        return "Release inicial sin historias."
+    
+    # Extraer títulos y descripciones breves de cada US
+    us_summaries = []
+    for us_file in us_files:
+        content = read_file(str(us_file))
+        # Extraer título (primera línea con #)
+        title_match = re.search(r"^#\s+US-\d+\s+-\s+(.+)$", content, re.MULTILINE)
+        # Extraer user story statement
+        us_match = re.search(r"## User Story\s+(.+?)(?=\n##|\Z)", content, re.DOTALL)
+        
+        if title_match:
+            title = title_match.group(1).strip()
+            us_statement = us_match.group(1).strip() if us_match else ""
+            us_summaries.append({
+                "id": us_file.stem.split("_")[0],
+                "title": title,
+                "statement": us_statement[:200]  # Limitar longitud
+            })
+    
+    # Usar IA para generar objetivo del release
+    summaries_text = "\n".join([
+        f"- {s['id']}: {s['title']}\n  {s['statement'][:150]}"
+        for s in us_summaries
+    ])
+    
+    prompt = f"""Genera un objetivo conciso para un release de software basándote en estas User Stories.
+
+RELEASE: {version} ({date_str})
+
+USER STORIES INCLUIDAS:
+{summaries_text}
+
+TAREA:
+Escribe 1-2 frases que describan el OBJETIVO PRINCIPAL de este release. Debe explicar QUÉ se logra y PARA QUÉ (valor de negocio).
+
+REGLAS:
+- Máximo 2 frases
+- Enfócate en el valor de negocio, no en detalles técnicos
+- Usa lenguaje claro y directo
+- No uses formato markdown
+- Ejemplo: "Mejorar la experiencia de compra con persistencia de carrito y validación de precios en tiempo real."
+"""
+    
+    response = client.chat.completions.create(
+        model=DEFAULT_MODEL,
+        messages=[
+            {"role": "system", "content": "Eres un product manager experto que escribe objetivos claros y concisos de releases."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3,
+        max_tokens=150
+    )
+    
+    return response.choices[0].message.content.strip()
+
 def archive_us_to_release(us_file: str, version: str, date_str: str, us_id: str, us_title: str, proposals: list[dict] = None):
     """Archiva una US en la carpeta de release correspondiente"""
     # Crear nombre de carpeta release
@@ -329,7 +407,7 @@ US: {us_title}
 Responde solo con 1-2 frases concisas que resuman QUÉ se actualizó y POR QUÉ. No uses formato markdown, solo texto plano."""
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=DEFAULT_MODEL,
             messages=[
                 {"role": "system", "content": "Eres un experto técnico que resume cambios de documentación de forma concisa."},
                 {"role": "user", "content": summary_prompt}
@@ -362,9 +440,24 @@ Responde solo con 1-2 frases concisas que resuman QUÉ se actualizó y POR QUÉ.
         else:
             indice_content += us_entry
         
+        # Regenerar objetivo del release basado en todas las US
+        release_objective = generate_release_objective(release_dir, version, date_str)
+        
+        # Actualizar sección de objetivo si existe
+        if "## Objetivo" in indice_content:
+            # Reemplazar contenido entre "## Objetivo" y el siguiente "##"
+            indice_content = re.sub(
+                r"(## Objetivo\s*\n\n)(.+?)(\n\n---\n\n## Historias incluidas)",
+                rf"\1{release_objective}\3",
+                indice_content,
+                flags=re.DOTALL
+            )
+        
         write_file(str(indice_path), indice_content)
     else:
-        # Crear nuevo índice
+        # Crear nuevo índice con objetivo generado
+        release_objective = generate_release_objective(release_dir, version, date_str)
+        
         indice_content = f"""# Release {version}
 
 Sprint del {date_str}
@@ -373,7 +466,7 @@ Sprint del {date_str}
 
 ## Objetivo
 
-Mejoras y nuevas funcionalidades implementadas en este release.
+{release_objective}
 
 ---
 
@@ -398,11 +491,14 @@ Mejoras y nuevas funcionalidades implementadas en este release.
         
         # Verificar si ya existe este release
         if release_dir_name not in indice_releases:
+            # Generar objetivo para el índice global
+            release_objective_short = generate_release_objective(release_dir, version, date_str)
+            
             # Añadir nuevo release al final
             new_entry = f"""\n---
 
 ## Release {version} – {date_str}
-**Objetivo:** Mejoras y nuevas funcionalidades.  
+**Objetivo:** {release_objective_short}  
 📄 [Ver detalle del release](./{release_dir_name}/indice.md)
 """
             indice_releases += new_entry
@@ -459,7 +555,7 @@ REGLAS:
 """
     
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=DEFAULT_MODEL,
         messages=[
             {"role": "system", "content": "Eres un experto en análisis de requisitos técnicos. Extraes información estructurada de User Stories."},
             {"role": "user", "content": analysis_prompt}
@@ -572,7 +668,7 @@ REGLAS:
 """
         
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=DEFAULT_MODEL,
             messages=[
                 {"role": "system", "content": "Eres un experto en documentación técnica de microservicios."},
                 {"role": "user", "content": propose_prompt}
@@ -638,6 +734,59 @@ def human_review_node(state: AgentState) -> AgentState:
     state["human_decision"] = decision
     return state
 
+def choose_release() -> tuple[str, str]:
+    """Permite elegir un release existente o crear uno nuevo"""
+    # Listar releases existentes
+    release_dirs = sorted(RELEASES_PATH.glob("release-*"))
+    
+    if release_dirs:
+        console.print("\n[bold cyan]📦 Releases existentes:[/bold cyan]\n")
+        for i, release_dir in enumerate(release_dirs, 1):
+            console.print(f"  {i}. {release_dir.name}")
+        console.print(f"  {len(release_dirs) + 1}. [yellow]Crear nuevo release[/yellow]")
+        console.print()
+        
+        choice = Prompt.ask(
+            "¿En qué release quieres incluir esta US?",
+            default=str(len(release_dirs) + 1)
+        )
+        
+        try:
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(release_dirs):
+                # Usar release existente
+                selected_release = release_dirs[choice_num - 1]
+                # Extraer versión y fecha del nombre: release-X.Y_YYYY-MM-DD
+                match = re.match(r"release-(\d+\.\d+)_(\d{4}-\d{2}-\d{2})", selected_release.name)
+                if match:
+                    return match.group(1), match.group(2)
+        except ValueError:
+            pass
+    
+    # Crear nuevo release
+    console.print("\n[bold cyan]🆕 Crear nuevo release:[/bold cyan]\n")
+    
+    # Sugerir siguiente versión
+    if release_dirs:
+        last_release = release_dirs[-1]
+        match = re.match(r"release-(\d+)\.(\d+)_", last_release.name)
+        if match:
+            major, minor = int(match.group(1)), int(match.group(2))
+            suggested_version = f"{major}.{minor + 1}"
+        else:
+            suggested_version = "1.0"
+    else:
+        suggested_version = "1.0"
+    
+    version = Prompt.ask("Versión del release", default=suggested_version)
+    
+    # Sugerir fecha de hoy
+    from datetime import datetime
+    suggested_date = datetime.now().strftime("%Y-%m-%d")
+    date_str = Prompt.ask("Fecha del release (YYYY-MM-DD)", default=suggested_date)
+    
+    return version, date_str
+
 def apply_changes_node(state: AgentState) -> AgentState:
     """
     Nodo 5: APPLIER
@@ -651,6 +800,9 @@ def apply_changes_node(state: AgentState) -> AgentState:
         "Motivo de la aceptación",
         default="Cambios aprobados"
     )
+    
+    # Guardar el motivo en el estado para usarlo después
+    state["acceptance_reason"] = acceptance_reason
     
     console.print("\n[bold cyan]⚙️  APPLIER:[/bold cyan] Aplicando cambios...")
     
@@ -697,7 +849,7 @@ REGLAS CRÍTICAS:
 """
         
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=DEFAULT_MODEL,
             messages=[
                 {"role": "system", "content": "Eres un experto en documentación técnica. Actualizas documentos aplicando cambios específicos mientras mantienes el formato y estructura original."},
                 {"role": "user", "content": apply_prompt}
@@ -726,35 +878,7 @@ REGLAS CRÍTICAS:
     
     console.print("\n[bold green]✅ Todos los cambios aplicados correctamente[/bold green]")
     
-    # Archivar US en release
-    us_file = state["us_file"]
-    us_id = analysis.get("us_id", "US-XXX")
-    us_title = analysis.get("title", "Sin título")
-    
-    console.print("\n[bold cyan]📦 Archivando US en release...[/bold cyan]")
-    
-    version, date_str = get_next_release_version()
-    new_path = archive_us_to_release(us_file, version, date_str, us_id, us_title, state["proposals"])
-    
-    console.print(f"[green]✓[/green] US archivada en release-{version}_{date_str}")
-    console.print(f"   Nueva ubicación: {Path(new_path).relative_to(BASE_PATH)}")
-    
-    # Registrar aceptación
-    console.print("\n[cyan]📝 Registrando aceptación...[/cyan]")
-    
-    log_path = register_acceptance(
-        us_file=us_file,
-        us_id=us_id,
-        us_title=us_title,
-        affected_docs=state["affected_docs"],
-        proposals=state["proposals"],
-        reason=acceptance_reason,
-        version=version,
-        release_date=date_str
-    )
-    
-    console.print(f"[green]✓[/green] Aceptación registrada en: {Path(log_path).relative_to(BASE_PATH)}")
-    console.print(f"[dim]   Motivo: {acceptance_reason}[/dim]")
+    # NO archivamos aquí, se hará al final en batch
     
     return state
 
@@ -908,6 +1032,9 @@ def main():
     # Construir grafo una vez
     graph = build_graph()
     
+    # Lista para almacenar US aceptadas
+    accepted_us_states = []
+    
     # Procesar cada US seleccionada
     for idx, us_index in enumerate(selected_indices, 1):
         us_file = str(done_files[us_index])
@@ -928,7 +1055,8 @@ def main():
             "affected_docs": [],
             "proposals": [],
             "human_decision": "reject",
-            "applied": False
+            "applied": False,
+            "acceptance_reason": ""
         }
         
         try:
@@ -937,6 +1065,7 @@ def main():
             console.print("\n" + "="*70)
             if final_state.get("applied"):
                 console.print("[bold green]✅ Proceso completado: Cambios aplicados[/bold green]")
+                accepted_us_states.append(final_state)
             else:
                 console.print("[bold yellow]ℹ️  Proceso completado: Sin cambios[/bold yellow]")
             console.print("="*70 + "\n")
@@ -954,6 +1083,100 @@ def main():
                     break
             else:
                 raise
+    
+    # Si hay US aceptadas, archivarlas
+    if accepted_us_states:
+        console.print("\n" + "="*70)
+        console.print(f"[bold magenta]📦 {len(accepted_us_states)} US aceptadas para archivar[/bold magenta]")
+        console.print("="*70 + "\n")
+        
+        # Mostrar resumen de US aceptadas
+        console.print("[cyan]US aceptadas:[/cyan]")
+        for state in accepted_us_states:
+            us_id = state["analysis"].get("us_id", "US-XXX")
+            us_title = state["analysis"].get("title", "Sin título")
+            console.print(f"  • {us_id}: {us_title}")
+        
+        console.print()
+        
+        # Decidir si usar mismo release o releases separados
+        if len(accepted_us_states) > 1:
+            release_mode = Prompt.ask(
+                "¿Cómo quieres archivar estas US?",
+                choices=["mismo", "separados"],
+                default="mismo"
+            )
+        else:
+            release_mode = "mismo"
+        
+        if release_mode == "mismo":
+            # Elegir release UNA SOLA VEZ
+            version, date_str = choose_release()
+            
+            console.print(f"\n[bold cyan]📦 Archivando todas las US en release-{version}_{date_str}...[/bold cyan]\n")
+            
+            # Archivar cada US aceptada en el mismo release
+            for state in accepted_us_states:
+                us_file = state["us_file"]
+                us_id = state["analysis"].get("us_id", "US-XXX")
+                us_title = state["analysis"].get("title", "Sin título")
+                acceptance_reason = state.get("acceptance_reason", "Cambios aprobados")
+                
+                # Archivar US
+                new_path = archive_us_to_release(us_file, version, date_str, us_id, us_title, state["proposals"])
+                
+                console.print(f"[green]✓[/green] {us_id} archivada")
+                
+                # Registrar aceptación
+                log_path = register_acceptance(
+                    us_file=us_file,
+                    us_id=us_id,
+                    us_title=us_title,
+                    affected_docs=state["affected_docs"],
+                    proposals=state["proposals"],
+                    reason=acceptance_reason,
+                    version=version,
+                    release_date=date_str
+                )
+            
+            console.print(f"\n[bold green]✅ Todas las US archivadas en release-{version}_{date_str}[/bold green]")
+            console.print(f"[green]✓[/green] Registro guardado en: {Path(log_path).relative_to(BASE_PATH)}")
+        
+        else:  # releases separados
+            console.print("\n[bold cyan]📦 Archivando US en releases separados...[/bold cyan]\n")
+            
+            for idx, state in enumerate(accepted_us_states, 1):
+                us_file = state["us_file"]
+                us_id = state["analysis"].get("us_id", "US-XXX")
+                us_title = state["analysis"].get("title", "Sin título")
+                acceptance_reason = state.get("acceptance_reason", "Cambios aprobados")
+                
+                console.print(f"\n[yellow]US {idx}/{len(accepted_us_states)}: {us_id}[/yellow]")
+                
+                # Elegir release para esta US específica
+                version, date_str = choose_release()
+                
+                # Archivar US
+                new_path = archive_us_to_release(us_file, version, date_str, us_id, us_title, state["proposals"])
+                
+                console.print(f"[green]✓[/green] {us_id} archivada en release-{version}_{date_str}")
+                
+                # Registrar aceptación
+                register_acceptance(
+                    us_file=us_file,
+                    us_id=us_id,
+                    us_title=us_title,
+                    affected_docs=state["affected_docs"],
+                    proposals=state["proposals"],
+                    reason=acceptance_reason,
+                    version=version,
+                    release_date=date_str
+                )
+            
+            console.print(f"\n[bold green]✅ Todas las US archivadas correctamente[/bold green]")
+    
+    else:
+        console.print("\n[yellow]ℹ️  No hay US aceptadas para archivar[/yellow]")
 
 if __name__ == "__main__":
     main()

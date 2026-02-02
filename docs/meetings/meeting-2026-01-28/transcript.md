@@ -1,106 +1,90 @@
-# Notas reunión – timeouts en procesamiento de pagos
-
-Fecha: 2026-01-28  
-Asistentes: Producto, Backend, Payments Team, QA  
-Tema: Usuarios experimentan timeouts durante el procesamiento de pagos
+# Transcript - Reunión de Producto
+**Fecha:** 2026-01-28  
+**Participantes:** Product Manager, Tech Lead, Frontend Developer  
 
 ---
 
-- 28 casos reportados este mes de timeouts en checkout
-- Usuario ingresa datos de pago → espera indefinida
-- Timeout después de 30 segundos
-- No queda claro si el pago se procesó o no
-- Usuarios intentan pagar de nuevo → doble cargo en algunos casos
-- Abandono del 18% en este paso
+## Contexto
 
----
+Los usuarios están pidiendo poder guardar productos para comprar más adelante sin añadirlos al carrito. Necesitamos implementar un sistema de wishlist o lista de deseos.
 
-## Situación actual
+## Discusión
 
-- Payment Service tiene timeout de 30 segundos
-- Pasarela de pago externa a veces tarda más
-- Frontend no muestra feedback durante la espera
-- Sin manejo de estados intermedios
-- No hay retry automático
+**Product Manager:**  
+Los datos muestran que muchos usuarios vuelven a buscar los mismos productos varias veces antes de comprarlos. Una wishlist les permitiría guardar productos de interés sin compromiso de compra inmediata.
 
----
+**Tech Lead:**  
+Entiendo. Básicamente necesitamos permitir que los usuarios:
+1. Añadan productos a una wishlist
+2. Vean su lista de productos guardados
+3. Muevan productos de wishlist al carrito fácilmente
+4. Eliminen productos de la wishlist
 
-## Problema identificado
+**Frontend Developer:**  
+¿Los usuarios pueden tener múltiples wishlists o solo una?
 
-- Timeout demasiado agresivo para pagos
-- Ejemplo:
-  1. Usuario completa datos de pago
-  2. Click en "Pagar ahora"
-  3. Frontend envía request a Payment Service
-  4. Payment Service llama a pasarela externa
-  5. Pasarela tarda 35 segundos en responder
-  6. Timeout en segundo 30
-  7. Usuario ve error genérico
-  8. No sabe si pagó o no
-  9. Algunos reintentan → doble cargo
+**Product Manager:**  
+Para la primera versión, una sola wishlist por usuario es suficiente. Podemos evaluar múltiples listas en el futuro según el feedback.
 
----
+**Tech Lead:**  
+De acuerdo. A nivel técnico necesitaríamos:
 
-## Impacto
+### Endpoints nuevos:
+- **POST /wishlist/items** - Añadir producto a wishlist
+- **GET /wishlist** - Obtener wishlist del usuario
+- **DELETE /wishlist/items/{productId}** - Eliminar producto de wishlist
+- **POST /wishlist/move-to-cart** - Mover uno o todos los items al carrito
 
-- Abandono en paso final: 18%
-- Reclamaciones por dobles cargos: 12 casos/mes
-- Tiempo de soporte resolviendo casos
-- Pérdida de confianza en el sistema
-- Ventas perdidas estimadas: 8.500€/mes
+### Modelo de datos MongoDB:
+```json
+{
+  "userId": "string",
+  "items": [
+    {
+      "productId": "string",
+      "addedAt": "timestamp",
+      "notifyOnDiscount": boolean,
+      "notifyOnStock": boolean
+    }
+  ],
+  "createdAt": "timestamp",
+  "lastModified": "timestamp"
+}
+```
 
----
+### Reglas de negocio:
+1. Máximo 100 productos en wishlist
+2. Notificar al usuario si producto tiene descuento
+3. Notificar si producto agotado vuelve a tener stock
+4. Los precios se consultan en tiempo real al mostrar wishlist
+5. Productos descatalogados se marcan pero no se eliminan automáticamente
 
-## Solución propuesta
+**Frontend Developer:**  
+¿Mostramos la wishlist en todas partes o solo en una sección dedicada?
 
-- Aumentar timeout a 90 segundos
-- Implementar processing state intermedio
-- Guardar intento de pago con status "pending"
-- Webhook de confirmación desde pasarela
-- Polling desde frontend para verificar estado
-- Evitar dobles cargos con idempotency keys
+**Product Manager:**  
+Sección dedicada accesible desde el menú principal. También un botón "Añadir a wishlist" en cada página de producto.
 
----
+**Tech Lead:**  
+Para las notificaciones necesitaríamos:
+- Evento cuando precio baja más de 10%
+- Evento cuando producto vuelve a estar disponible
+- Email o notificación push según preferencias del usuario
 
-## Cambios técnicos necesarios
+**Product Manager:**  
+Perfecto. También necesitamos mostrar si un producto ya está en la wishlist para evitar duplicados.
 
-- Modificar Payment Service:
-  - Aumentar timeout HTTP a 90 segundos
-  - Crear estado "processing" en base de datos
-  - Generar idempotency key por intento
-  - Endpoint: GET /v1/payments/{paymentId}/status
-  - Webhook: POST /v1/payments/webhook para confirmaciones
-- Frontend:
-  - Mostrar loading state con mensaje informativo
-  - Polling cada 3s para verificar estado
-  - Deshabilitar botón de pago tras primer click
-  - Mensaje: "Procesando pago, por favor espera..."
-- Base de datos:
-  - Nueva colección: payment_attempts
-  - Campos: paymentId, status, idempotencyKey, timestamp
+## Decisiones finales
 
----
+1. Implementar sistema de wishlist con una lista por usuario
+2. Límite de 100 productos
+3. Notificaciones de descuentos y disponibilidad
+4. Integración visual en páginas de producto
+5. Opción de mover items al carrito directamente
 
-## Flujo propuesto
+## Próximos pasos
 
-1. Usuario click "Pagar ahora"
-2. Frontend genera idempotency key
-3. Envía POST /v1/payments con key
-4. Payment Service crea registro "processing"
-5. Llama a pasarela externa
-6. Frontend inicia polling de estado
-7. Pasarela confirma pago (via webhook o response)
-8. Payment Service actualiza a "completed"
-9. Frontend detecta cambio y muestra éxito
-10. Si usuario recarga → mismo estado, no duplica
-
----
-
-## Consideraciones
-
-- Idempotency key único por sesión + carrito
-- Webhook debe validar firma de pasarela
-- Logs detallados de cada intento
-- Monitoreo de tiempos de respuesta de pasarela
-- Plan B si pasarela está caída
-- Mensaje claro al usuario durante espera
+- Crear User Story en backlog
+- Diseñar UI de la wishlist
+- Implementar sistema de notificaciones
+- Definir endpoints y modelo de datos
